@@ -118,7 +118,7 @@ export function useParty(code: string, me: Me | null) {
     });
 
     ch.on("broadcast", { event: "state" }, ({ payload }) => {
-      const next = payload as PartyState;
+      const next = { ...(payload as PartyState), invalid: (payload as PartyState).invalid ?? {} };
       // Fica sempre com a versão mais nova. Assim, se o host recarregar a página,
       // ele recupera a partida com quem ficou na sala, em vez de zerar tudo.
       if (next.version > stateRef.current.version) {

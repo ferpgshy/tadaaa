@@ -8,6 +8,8 @@ import { sfx } from "@/lib/sfx";
 import { useHydrated } from "@/lib/use-hydrated";
 import { AvatarImage } from "@/components/avatar-image";
 import { useCreateRoom } from "@/components/party/party-entry";
+import type { InvalidReason } from "./anticheat";
+import { HoldTimer, type HoldResult } from "./hold-timer";
 import type { AvatarMood } from "@/lib/avatar";
 import type { AvatarImages } from "@/lib/profile";
 import {
@@ -27,6 +29,7 @@ import {
 } from "./logic";
 
 const L = t.blindTimer;
+const A = t.anticheat;
 const SLUG = "cronometro-cego";
 
 type Phase = "setup" | "ready" | "running" | "result" | "podium";
@@ -64,9 +67,7 @@ export function BlindTimerGame() {
   const [shots, setShots] = useState<Shot[]>([]);
   const [recordStatus, setRecordStatus] = useState<"first" | "better" | false>(false);
 
-  const startRef = useRef(0);
   const stoppedAtRef = useRef(0);
-  const displayRef = useRef<HTMLSpanElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
 
   const players = config?.mode === "group" ? config.players : [profile.nickname || t.profile.defaultNick];
@@ -102,32 +103,23 @@ export function BlindTimerGame() {
     setPhase("ready");
   }, [config, turn, totalTurns, players.length, round]);
 
-  const act = useCallback(
-    (ts: number) => {
-      if (phase === "ready") {
-        startRef.current = ts;
-        sfx.start();
-        setPhase("running");
-      } else if (phase === "running") {
-        const elapsedMs = ts - startRef.current;
-        stoppedAtRef.current = performance.now();
-        const shot: Shot = { player: playerIdx, round, target, elapsedMs };
-        setShots((s) => [...s, shot]);
-        const err = errorMs(elapsedMs, target);
-        const v = verdict(err);
-        const saved =
-          config?.mode === "solo" ? profile.saveLowerRecord(`${SLUG}:${target}`, Math.round(Math.abs(err))) : false;
-        // Só comemora quando bate uma marca anterior (a primeira jogada sempre "seria" recorde).
-        setRecordStatus(saved);
-        sfx.stop();
-        setTimeout(() => (v === "perfect" || v === "surgical" ? sfx.win() : v === "broken" ? sfx.buzz() : sfx.good()), 150);
-        setPhase("result");
-      } else if (phase === "result") {
-        // Evita pular o resultado com um toque duplo sem querer.
-        if (performance.now() - stoppedAtRef.current > 700) next();
-      }
+  /** Fim da jogada (vem do cronômetro de segurar, já com o veredito do antitrapaça). */
+  const finishShot = useCallback(
+    ({ elapsedMs, invalid }: HoldResult) => {
+      stoppedAtRef.current = performance.now();
+      const shot: Shot = { player: playerIdx, round, target, elapsedMs, invalid };
+      setShots((s) => [...s, shot]);
+      const err = errorMs(elapsedMs, target);
+      const v = verdict(err);
+      // Jogada que não vale não conta recorde.
+      const saved =
+        config?.mode === "solo" && !invalid ? profile.saveLowerRecord(`${SLUG}:${target}`, Math.round(Math.abs(err))) : false;
+      // Só comemora quando bate uma marca anterior (a primeira jogada sempre "seria" recorde).
+      setRecordStatus(saved);
+      if (!invalid) setTimeout(() => (v === "perfect" || v === "surgical" ? sfx.win() : v === "broken" ? sfx.buzz() : sfx.good()), 150);
+      setPhase("result");
     },
-    [phase, playerIdx, round, target, config, profile, next],
+    [playerIdx, round, target, config, profile],
   );
 
   useEffect(() => {
@@ -138,15 +130,16 @@ export function BlindTimerGame() {
         setPhase("setup");
         return;
       }
-      if (e.code !== "Space" && e.code !== "Enter") return;
+      // No resultado, espaço/enter vai para a próxima (com trava contra toque duplo sem querer).
+      if (phase !== "result" || (e.code !== "Space" && e.code !== "Enter")) return;
       const el = e.target as HTMLElement;
       if (el.closest("input, textarea, button, a, dialog")) return;
       e.preventDefault();
-      if (!e.repeat) act(e.timeStamp);
+      if (!e.repeat && performance.now() - stoppedAtRef.current > 700) next();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [phase, act]);
+  }, [phase, next]);
 
   // No resultado, garante que os botões de ação (De novo / Próximo) apareçam na tela.
   useEffect(() => {
@@ -169,23 +162,6 @@ export function BlindTimerGame() {
     if (top < 0 || top > window.innerHeight * 0.4) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [view]);
 
-  const hideMs = (config?.hideAfter ?? 3) * 1000;
-  useEffect(() => {
-    if (phase !== "running") return;
-    let id = 0;
-    const loop = () => {
-      const el = displayRef.current;
-      const elapsed = performance.now() - startRef.current;
-      if (el) {
-        const hidden = elapsed >= hideMs;
-        el.textContent = hidden ? L.hidden : formatSeconds(elapsed);
-        el.dataset.hidden = String(hidden);
-      }
-      id = requestAnimationFrame(loop);
-    };
-    id = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(id);
-  }, [phase, hideMs]);
 
   if (phase === "setup" || !config) return <Setup initial={config} onStart={begin} />;
 
@@ -229,42 +205,24 @@ export function BlindTimerGame() {
         </button>
       </div>
 
+      {phase !== "result" && (
+        <HoldTimer
+          key={`${turn}-${target}`}
+          target={target}
+          hideAfter={config.hideAfter}
+          onStart={() => setPhase("running")}
+          onResult={finishShot}
+        />
+      )}
+
       <div
-        role="button"
-        tabIndex={-1}
-        aria-label={phase === "ready" ? L.pressToStart : phase === "running" ? L.pressToStop : undefined}
-        onPointerDown={(e) => {
-          if (phase === "ready" || phase === "running") {
-            e.preventDefault();
-            act(e.timeStamp);
-          }
-        }}
-        className={`pop relative flex min-h-[320px] touch-manipulation flex-col items-center justify-center gap-4 sm:min-h-[380px] sm:gap-6 overflow-hidden rounded-4xl p-5 text-center select-none sm:p-8 lg:min-h-[480px] ${
-          phase === "result" ? "bg-cream" : "sunburst cursor-pointer"
+        className={`pop relative flex-col items-center justify-center gap-4 overflow-hidden rounded-4xl bg-cream p-5 text-center sm:gap-6 sm:p-8 lg:min-h-[480px] ${
+          phase === "result" ? "flex min-h-[320px] sm:min-h-[380px]" : "hidden"
         }`}
       >
         <div className="rounded-full bd bg-cream px-5 py-1 font-display text-xl font-bold">
           {L.targetLabel} <span className="text-accent">{formatSeconds(target * 1000)}s</span>
         </div>
-
-        {phase !== "result" && (
-          <>
-            <div className="pop rounded-3xl bg-display px-6 py-5 sm:px-10 sm:py-6">
-              <span
-                key={phase}
-                ref={displayRef}
-                data-hidden={phase === "running" && hideMs === 0}
-                className="block min-w-[5ch] font-mono text-7xl font-bold text-display-fg tabular-nums data-[hidden=true]:animate-pulse data-[hidden=true]:text-accent sm:text-8xl xl:text-9xl"
-              >
-                {phase === "running" && hideMs === 0 ? L.hidden : "0,00"}
-              </span>
-            </div>
-            <p className="font-display text-xl font-extrabold sm:text-2xl">
-              <span className="pointer-coarse:hidden">{phase === "ready" ? L.pressToStart : L.pressToStop}</span>
-              <span className="hidden pointer-coarse:inline">{phase === "ready" ? L.tapToStart : L.tapToStop}</span>
-            </p>
-          </>
-        )}
 
         <p className="sr-only" aria-live="polite">
           {phase === "result" && lastShot
@@ -279,6 +237,7 @@ export function BlindTimerGame() {
             err={err}
             v={v}
             status={recordStatus}
+            invalid={lastShot.invalid}
             avatar={avatarOf(lastShot.player)}
             name={players[lastShot.player]}
             record={config.mode === "solo" ? record : undefined}
@@ -306,7 +265,12 @@ export function BlindTimerGame() {
           {shots.slice(-8).map((s, i) => {
             const e = errorMs(s.elapsedMs, s.target);
             return (
-              <span key={i} className={`rounded-full border-2 border-line px-3 py-0.5 font-mono ${verdictColor[verdict(e)]}`}>
+              <span
+                key={i}
+                title={s.invalid ? A.invalidStamp : undefined}
+                className={`rounded-full border-2 border-line px-3 py-0.5 font-mono ${s.invalid ? "bg-field line-through opacity-60" : verdictColor[verdict(e)]}`}
+              >
+                {s.invalid ? "✖ " : ""}
                 {formatDiff(e)}
               </span>
             );
@@ -359,6 +323,7 @@ function ResultView({
   record,
   avatar,
   name,
+  invalid,
 }: {
   elapsedMs: number;
   err: number;
@@ -367,9 +332,10 @@ function ResultView({
   record?: number;
   avatar: PlayerAvatar | null;
   name: string;
+  invalid?: InvalidReason;
 }) {
   const isRecord = status === "better";
-  const mood = moodFor(v);
+  const mood = invalid ? "sad" : moodFor(v);
   return (
     <div className="flex flex-col items-center gap-3 sm:gap-4">
       {avatar?.images && (
@@ -400,12 +366,13 @@ function ResultView({
         initial={{ scale: 2, opacity: 0, rotate: 10 }}
         animate={{ scale: 1, opacity: 1, rotate: -3 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 300, damping: 12 }}
-        className={`pop rounded-2xl px-6 py-2 text-center font-display text-2xl font-extrabold sm:text-4xl ${verdictColor[v]}`}
+        className={`pop rounded-2xl px-6 py-2 text-center font-display text-2xl font-extrabold sm:text-4xl ${invalid ? "bg-tomato" : verdictColor[v]}`}
       >
-        {L.verdicts[v]}
+        {invalid ? `🚫 ${A.invalidStamp}` : L.verdicts[v]}
       </motion.div>
+      {invalid && <p className="max-w-md text-center font-display font-bold text-accent">{A.invalid[invalid]}</p>}
       <p className="text-center font-display text-lg sm:text-xl">
-        {L.diff}: <span className="font-mono font-bold">{formatDiff(err)}</span> · {roundPoints(err)} {L.points}
+        {L.diff}: <span className="font-mono font-bold">{formatDiff(err)}</span> · {invalid ? 0 : roundPoints(err)} {L.points}
       </p>
       <AnimatePresence>
         {isRecord && (
@@ -425,6 +392,15 @@ function ResultView({
         </p>
       )}
     </div>
+  );
+}
+
+/** Selo de "bom demais": acertou no milésimo mais de uma vez. */
+export function SuspiciousBadge({ compact = false }: { compact?: boolean }) {
+  return (
+    <span title={A.suspiciousHint} className="inline-block rounded-full bg-tomato px-2 py-0.5 text-xs font-bold whitespace-nowrap">
+      {compact ? "🤨" : A.suspicious}
+    </span>
   );
 }
 
@@ -743,6 +719,7 @@ function Podium({
                 <span className="absolute -right-3 -bottom-2 text-3xl">{medals[pos]}</span>
               </motion.div>
               <span className="max-w-full truncate font-display text-xl font-extrabold">{players[s.player]}</span>
+              {s.suspicious && <SuspiciousBadge />}
               <span className="font-mono">{s.total} pts</span>
               <div
                 className={`pop-sm flex w-full items-start justify-center rounded-t-2xl pt-3 font-display text-4xl font-extrabold ${podiumColors[pos]} ${heights[pos]}`}
@@ -768,7 +745,9 @@ function Podium({
           {table.map((s, i) => (
             <tr key={s.player} className="border-b border-ink/15">
               <td className="py-2 font-display font-bold">{i + 1}</td>
-              <td className="font-semibold">{players[s.player]}</td>
+              <td className="font-semibold">
+                {players[s.player]} {s.suspicious && <SuspiciousBadge compact />}
+              </td>
               <td className="text-right font-mono">±{formatDiff(s.avgAbsErr).slice(1)}</td>
               <td className="text-right font-mono font-bold">{s.total}</td>
             </tr>

@@ -1,6 +1,7 @@
 // Regras da sala online (sem rede): estado único, mantido pelo host e repassado a todos.
 // Fica separado da conexão para dar para testar e reaproveitar em outros jogos.
 import type { AvatarConfig } from "@/lib/avatar";
+import { isSuspicious, type InvalidReason } from "@/games/cronometro-cego/anticheat";
 import { errorMs, roundPoints, surpriseTarget } from "@/games/cronometro-cego/logic";
 
 export const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // sem 0/O, 1/I/L
@@ -38,13 +39,15 @@ export type PartyState = {
   roster: string[];
   /** results[rodada][jogador] = tempo parado em ms. */
   results: Record<number, Record<string, number>>;
+  /** Jogadas que não valem: invalid[rodada][jogador] = motivo (saiu da tela, alvos, juiz). */
+  invalid: Record<number, Record<string, InvalidReason>>;
   version: number;
 };
 
 export const DEFAULT_SETTINGS: PartySettings = { target: 10, hideAfter: 3, rounds: 3 };
 
 export function initialState(): PartyState {
-  return { phase: "lobby", settings: DEFAULT_SETTINGS, round: 0, target: 10, targets: {}, roster: [], results: {}, version: 0 };
+  return { phase: "lobby", settings: DEFAULT_SETTINGS, round: 0, target: 10, targets: {}, roster: [], results: {}, invalid: {}, version: 0 };
 }
 
 const pickTarget = (s: PartySettings, rand?: () => number) => (s.target === "surprise" ? surpriseTarget(rand) : s.target);
@@ -52,7 +55,9 @@ const pickTarget = (s: PartySettings, rand?: () => number) => (s.target === "sur
 export type PartyEvent =
   | { type: "configure"; settings: PartySettings }
   | { type: "start"; roster: string[] }
-  | { type: "submit"; playerId: string; round: number; elapsedMs: number }
+  | { type: "submit"; playerId: string; round: number; elapsedMs: number; invalid?: InvalidReason }
+  /** Juiz humano: o host anula a jogada de alguém. */
+  | { type: "void"; playerId: string; round: number }
   | { type: "next" }
   | { type: "lobby" }
   /** Quem está conectado agora: se todos os presentes já jogaram, a rodada fecha. */
@@ -68,7 +73,7 @@ export function reduce(state: PartyState, ev: PartyEvent, rand?: () => number): 
     case "start": {
       if (ev.roster.length < 1) return state;
       const target = pickTarget(state.settings, rand);
-      return bump({ ...state, phase: "playing", round: 0, target, targets: { 0: target }, roster: ev.roster, results: {} });
+      return bump({ ...state, phase: "playing", round: 0, target, targets: { 0: target }, roster: ev.roster, results: {}, invalid: {} });
     }
     case "submit": {
       if (state.phase !== "playing" || ev.round !== state.round || !state.roster.includes(ev.playerId)) return state;
@@ -76,7 +81,12 @@ export function reduce(state: PartyState, ev: PartyEvent, rand?: () => number): 
       if (roundRes[ev.playerId] !== undefined) return state; // não deixa reenviar
       const nextRes = { ...roundRes, [ev.playerId]: Math.max(0, Math.round(ev.elapsedMs)) };
       const done = state.roster.every((id) => nextRes[id] !== undefined);
-      return bump({ ...state, results: { ...state.results, [state.round]: nextRes }, phase: done ? "roundEnd" : "playing" });
+      const invalid = ev.invalid ? { ...state.invalid, [state.round]: { ...state.invalid[state.round], [ev.playerId]: ev.invalid } } : state.invalid;
+      return bump({ ...state, results: { ...state.results, [state.round]: nextRes }, invalid, phase: done ? "roundEnd" : "playing" });
+    }
+    case "void": {
+      if (state.results[ev.round]?.[ev.playerId] === undefined || state.invalid[ev.round]?.[ev.playerId]) return state;
+      return bump({ ...state, invalid: { ...state.invalid, [ev.round]: { ...state.invalid[ev.round], [ev.playerId]: "judge" } } });
     }
     case "sweep": {
       // Quem caiu continua na partida (e volta com os pontos se reconectar); só não trava a rodada.
@@ -94,11 +104,11 @@ export function reduce(state: PartyState, ev: PartyEvent, rand?: () => number): 
       return bump({ ...state, phase: "playing", round: state.round + 1, target, targets: { ...state.targets, [state.round + 1]: target } });
     }
     case "lobby":
-      return bump({ ...state, phase: "lobby", round: 0, targets: {}, roster: [], results: {} });
+      return bump({ ...state, phase: "lobby", round: 0, targets: {}, roster: [], results: {}, invalid: {} });
   }
 }
 
-export type PartyStanding = { id: string; total: number; avgAbsErr: number; played: number };
+export type PartyStanding = { id: string; total: number; avgAbsErr: number; played: number; suspicious: boolean };
 
 /** Placar: soma de pontos (1000 no exato), desempate pelo menor erro médio. */
 export function partyStandings(state: PartyState): PartyStanding[] {
@@ -106,17 +116,19 @@ export function partyStandings(state: PartyState): PartyStanding[] {
   return state.roster
     .map((id) => {
       let total = 0;
-      let errSum = 0;
+      const errs: number[] = [];
       let played = 0;
       for (const [r, res] of Object.entries(state.results)) {
         const t = targets[Number(r)];
         if (res[id] === undefined || t === undefined) continue;
+        played++;
+        if (state.invalid?.[Number(r)]?.[id]) continue; // não vale: 0 ponto e fora do erro médio
         const e = errorMs(res[id], t);
         total += roundPoints(e);
-        errSum += Math.abs(e);
-        played++;
+        errs.push(Math.abs(e));
       }
-      return { id, total, avgAbsErr: played ? errSum / played : Infinity, played };
+      const avgAbsErr = errs.length ? errs.reduce((a, b) => a + b, 0) / errs.length : Infinity;
+      return { id, total, avgAbsErr, played, suspicious: isSuspicious(errs) };
     })
     .sort((a, b) => b.total - a.total || a.avgAbsErr - b.avgAbsErr);
 }

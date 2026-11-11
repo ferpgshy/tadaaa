@@ -48,6 +48,20 @@ describe("sala online", () => {
     expect(table[0].total).toBe(1000 + 800);
   });
 
+  it("antitrapaça: jogada que não vale e anulação pelo host contam 0", () => {
+    let s = reduce(initialState(), { type: "configure", settings: { target: 10, hideAfter: 3, rounds: 1 } });
+    s = reduce(s, { type: "start", roster: ["a", "b", "c"] });
+    s = reduce(s, { type: "submit", playerId: "a", round: 0, elapsedMs: 10_000, invalid: "focus" });
+    s = reduce(s, { type: "submit", playerId: "b", round: 0, elapsedMs: 10_200 });
+    s = reduce(s, { type: "submit", playerId: "c", round: 0, elapsedMs: 10_400 });
+    s = reduce(s, { type: "void", playerId: "b", round: 0 });
+    expect(s.invalid[0]).toEqual({ a: "focus", b: "judge" });
+    const t = partyStandings(s);
+    expect(t[0].id).toBe("c");
+    expect(t.find((x) => x.id === "a")!.total).toBe(0);
+    expect(t.find((x) => x.id === "b")!.total).toBe(0);
+  });
+
   it("host é quem criou; se sair, o mais antigo assume", () => {
     expect(electHost([{ id: "b", name: "B", avatar: null, joinedAt: 1 }, { id: "a", name: "A", avatar: null, joinedAt: 5, host: true }])).toBe("a");
     expect(electHost([{ id: "b", name: "B", avatar: null, joinedAt: 3 }, { id: "c", name: "C", avatar: null, joinedAt: 1 }])).toBe("c");

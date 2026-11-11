@@ -13,10 +13,13 @@ import { useProfile, type AvatarImages } from "@/lib/profile";
 import { sfx } from "@/lib/sfx";
 import { useHydrated } from "@/lib/use-hydrated";
 import { InvitePanel } from "./invite-panel";
-import { OnlineRound } from "./online-round";
+import { HoldTimer } from "@/games/cronometro-cego/hold-timer";
+import { SuspiciousBadge } from "@/games/cronometro-cego/blind-timer-game";
+import type { InvalidReason } from "@/games/cronometro-cego/anticheat";
 
 const P = t.party;
 const L = t.blindTimer;
+const A = t.anticheat;
 
 const moodFor = (v: VerdictKey): AvatarMood =>
   v === "perfect" || v === "surgical" || v === "close" ? "happy" : v === "broken" ? "sad" : v === "meh" ? "shock" : "neutral";
@@ -56,6 +59,7 @@ export function PartyRoom({ code }: { code: string }) {
 
   // Tempo que eu mandei nesta rodada (antes do host confirmar).
   const [sent, setSent] = useState<Record<number, number>>({});
+  const [sentInvalid, setSentInvalid] = useState<Record<number, InvalidReason | undefined>>({});
   const prevPhase = useRef(state.phase);
   useEffect(() => {
     if (prevPhase.current !== state.phase) {
@@ -175,19 +179,25 @@ export function PartyRoom({ code }: { code: string }) {
           (!inRoster ? (
             <Notice text={P.spectator} />
           ) : myTime === undefined ? (
-            <OnlineRound
+            <HoldTimer
               key={state.round}
               target={state.target}
               hideAfter={state.settings.hideAfter}
-              onDone={(ms) => {
-                setSent((s) => ({ ...s, [state.round]: ms }));
-                dispatch({ type: "submit", playerId: me.id, round: state.round, elapsedMs: ms });
+              onResult={({ elapsedMs, invalid }) => {
+                setSent((s) => ({ ...s, [state.round]: elapsedMs }));
+                setSentInvalid((s) => ({ ...s, [state.round]: invalid }));
+                dispatch({ type: "submit", playerId: me.id, round: state.round, elapsedMs, invalid });
               }}
             />
           ) : (
             <div className="pop flex flex-col items-center gap-3 rounded-4xl bg-cream p-8 text-center">
               <AvatarImage images={images[me.id]?.images} frame={images[me.id]?.frame} mood={moodFor(verdict(errorMs(myTime, state.target)))} size={96} alt={me.name} />
               <p className="font-display text-2xl font-extrabold">{P.youStopped(formatSeconds(myTime))}</p>
+              {(state.invalid?.[state.round]?.[me.id] ?? sentInvalid[state.round]) && (
+                <p className="pop-sm rounded-xl bg-tomato px-3 py-1 font-display font-bold">
+                  🚫 {A.invalid[(state.invalid?.[state.round]?.[me.id] ?? sentInvalid[state.round])!]}
+                </p>
+              )}
               <p className="animate-pulse text-ink/70">{P.waitingOthers}</p>
             </div>
           ))}
@@ -196,6 +206,8 @@ export function PartyRoom({ code }: { code: string }) {
           <RoundResults
             ids={state.roster}
             results={roundRes}
+            invalid={state.invalid?.[state.round] ?? {}}
+            onVoid={isHost ? (id) => dispatch({ type: "void", playerId: id, round: state.round }) : undefined}
             target={state.target}
             nameOf={nameOf}
             images={images}
@@ -310,6 +322,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function RoundResults({
   ids,
   results,
+  invalid,
+  onVoid,
   target,
   nameOf,
   images,
@@ -317,6 +331,9 @@ function RoundResults({
 }: {
   ids: string[];
   results: Record<string, number>;
+  invalid: Record<string, InvalidReason>;
+  /** Juiz humano: só o host recebe este botão. */
+  onVoid?: (id: string) => void;
   target: number;
   nameOf: (id: string) => string;
   images: Record<string, { images: AvatarImages; frame: number }>;
@@ -324,8 +341,9 @@ function RoundResults({
 }) {
   const rows = ids
     .filter((id) => results[id] !== undefined)
-    .map((id) => ({ id, ms: results[id], err: errorMs(results[id], target) }))
-    .sort((a, b) => Math.abs(a.err) - Math.abs(b.err));
+    .map((id) => ({ id, ms: results[id], err: errorMs(results[id], target), bad: invalid[id] }))
+    // Quem não valeu vai para o fim.
+    .sort((a, b) => Number(Boolean(a.bad)) - Number(Boolean(b.bad)) || Math.abs(a.err) - Math.abs(b.err));
   return (
     <div className="pop flex flex-col gap-4 rounded-4xl bg-cream p-5 sm:p-8">
       <h2 className="font-display text-2xl font-extrabold">
@@ -343,13 +361,30 @@ function RoundResults({
               className="flex items-center gap-3 rounded-2xl bg-field p-2 pr-4"
             >
               <span className="w-6 text-center font-display text-xl font-extrabold">{i + 1}</span>
-              <AvatarImage images={images[r.id]?.images} frame={images[r.id]?.frame} mood={moodFor(v)} size={48} alt={nameOf(r.id)} />
-              <span className="min-w-0 flex-1 truncate font-display font-bold">{nameOf(r.id)}</span>
-              <span className="font-mono font-bold">{formatSeconds(r.ms)}s</span>
+              <AvatarImage images={images[r.id]?.images} frame={images[r.id]?.frame} mood={r.bad ? "sad" : moodFor(v)} size={48} alt={nameOf(r.id)} />
+              <span className="min-w-0 flex-1 truncate font-display font-bold">
+                {nameOf(r.id)}
+                {r.bad && (
+                  <span title={A.invalid[r.bad]} className="ml-2 rounded-full bg-tomato px-2 py-0.5 text-xs font-bold whitespace-nowrap">
+                    🚫 {r.bad === "judge" ? A.voidedBy : A.invalidStamp}
+                  </span>
+                )}
+              </span>
+              <span className={`font-mono font-bold ${r.bad ? "line-through opacity-60" : ""}`}>{formatSeconds(r.ms)}s</span>
               <span className="hidden font-mono text-sm text-ink/70 sm:inline">{formatDiff(r.err)}</span>
               <span className="w-16 text-right font-mono font-bold">
-                {roundPoints(r.err)} {P.points}
+                {r.bad ? 0 : roundPoints(r.err)} {P.points}
               </span>
+              {onVoid && !r.bad && (
+                <button
+                  type="button"
+                  onClick={() => onVoid(r.id)}
+                  title={A.voidBtn}
+                  className="pop-sm pressable rounded-lg bg-cream px-2 py-1 text-xs font-bold"
+                >
+                  ⚖️ {A.voidBtn}
+                </button>
+              )}
             </motion.li>
           );
         })}
@@ -405,6 +440,7 @@ function Standings({
                   <span className="absolute -right-3 -bottom-2 text-3xl">{medals[pos]}</span>
                 </motion.div>
                 <span className="max-w-full truncate font-display font-extrabold">{nameOf(s.id)}</span>
+                {s.suspicious && <SuspiciousBadge />}
                 <span className="font-mono text-sm">{s.total} pts</span>
                 <div className={`pop-sm flex w-full justify-center rounded-t-2xl pt-2 font-display text-3xl font-extrabold ${colors[pos]} ${heights[pos]}`}>
                   {pos + 1}
@@ -427,7 +463,9 @@ function Standings({
           {table.map((s, i) => (
             <tr key={s.id} className="border-b border-ink/15">
               <td className="py-2 font-display font-bold">{i + 1}</td>
-              <td className="font-semibold">{nameOf(s.id)}</td>
+              <td className="font-semibold">
+                {nameOf(s.id)} {s.suspicious && <SuspiciousBadge compact />}
+              </td>
               <td className="text-right font-mono">{Number.isFinite(s.avgAbsErr) ? `±${formatDiff(s.avgAbsErr).slice(1)}` : "—"}</td>
               <td className="text-right font-mono font-bold">{s.total}</td>
             </tr>

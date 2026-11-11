@@ -1,4 +1,5 @@
 import { locale } from "@/i18n";
+import { isSuspicious, type InvalidReason } from "./anticheat";
 
 export const TARGETS = [5, 10, 15, 30, 60] as const;
 export const HIDE_OPTIONS = [3, 1, 0] as const; // 0 = nunca aparece
@@ -33,19 +34,28 @@ export const formatDiff = (errMs: number) => `${errMs >= 0 ? "+" : "−"}${three
 
 export const surpriseTarget = (rand: () => number = Math.random) => 5 + Math.floor(rand() * 16); // 5 a 20
 
-export type Shot = { player: number; round: number; target: number; elapsedMs: number };
+export type Shot = {
+  player: number;
+  round: number;
+  target: number;
+  elapsedMs: number;
+  /** Jogada que não vale (antitrapaça): conta 0 ponto e não entra no erro médio. */
+  invalid?: InvalidReason;
+};
 
-export type Standing = { player: number; total: number; avgAbsErr: number; shots: number };
+export type Standing = { player: number; total: number; avgAbsErr: number; shots: number; suspicious: boolean };
 
 export function standings(playerCount: number, shots: Shot[]): Standing[] {
   return Array.from({ length: playerCount }, (_, player) => {
     const mine = shots.filter((s) => s.player === player);
-    const errs = mine.map((s) => errorMs(s.elapsedMs, s.target));
+    const valid = mine.filter((s) => !s.invalid);
+    const errs = valid.map((s) => errorMs(s.elapsedMs, s.target));
     return {
       player,
       total: errs.reduce((sum, e) => sum + roundPoints(e), 0),
       avgAbsErr: errs.length ? errs.reduce((sum, e) => sum + Math.abs(e), 0) / errs.length : Infinity,
       shots: mine.length,
+      suspicious: isSuspicious(errs.map(Math.abs)),
     };
   }).sort((a, b) => b.total - a.total || a.avgAbsErr - b.avgAbsErr);
 }
