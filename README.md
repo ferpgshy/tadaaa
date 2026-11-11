@@ -1,6 +1,6 @@
 # Tadaaa
 
-Jogos de festa e desafios que estão em alta, direto no navegador. Sem login: perfil, recordes e preferências ficam salvos no próprio aparelho.
+Jogos de festa e desafios que estão em alta, direto no navegador: **https://playtadaaa.vercel.app**. Sem login: perfil, recordes e preferências ficam salvos no próprio aparelho.
 
 ## No ar
 
