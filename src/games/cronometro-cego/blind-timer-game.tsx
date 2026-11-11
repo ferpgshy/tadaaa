@@ -1,0 +1,610 @@
+"use client";
+
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { t } from "@/i18n";
+import { useProfile } from "@/lib/profile";
+import { sfx } from "@/lib/sfx";
+import { useHydrated } from "@/lib/use-hydrated";
+import {
+  HIDE_OPTIONS,
+  MAX_PLAYERS,
+  ROUND_OPTIONS,
+  TARGETS,
+  errorMs,
+  formatDiff,
+  formatSeconds,
+  roundPoints,
+  standings,
+  surpriseTarget,
+  verdict,
+  type Shot,
+  type VerdictKey,
+} from "./logic";
+
+const L = t.blindTimer;
+const SLUG = "cronometro-cego";
+
+type Phase = "setup" | "ready" | "running" | "result" | "podium";
+type Config = {
+  mode: "solo" | "group";
+  target: number | "surprise";
+  hideAfter: number;
+  rounds: number;
+  players: string[];
+};
+
+const verdictColor: Record<VerdictKey, string> = {
+  perfect: "bg-lime",
+  surgical: "bg-lime",
+  close: "bg-cyan",
+  almost: "bg-sun",
+  meh: "bg-tomato",
+  broken: "bg-pink",
+};
+
+export function BlindTimerGame() {
+  const profile = useProfile();
+  const [phase, setPhase] = useState<Phase>("setup");
+  const [config, setConfig] = useState<Config | null>(null);
+  const [turn, setTurn] = useState(0);
+  const [target, setTarget] = useState(10);
+  const [shots, setShots] = useState<Shot[]>([]);
+  const [isRecord, setIsRecord] = useState(false);
+
+  const startRef = useRef(0);
+  const stoppedAtRef = useRef(0);
+  const displayRef = useRef<HTMLSpanElement>(null);
+
+  const players = config?.mode === "group" ? config.players : [profile.nickname || t.profile.defaultNick];
+  const playerIdx = turn % players.length;
+  const round = Math.floor(turn / players.length);
+  const totalTurns = config?.mode === "group" ? config.rounds * players.length : Infinity;
+  const lastShot = shots.at(-1);
+
+  const pickTarget = (c: Config) => (c.target === "surprise" ? surpriseTarget() : c.target);
+
+  const begin = (c: Config) => {
+    setConfig(c);
+    setShots([]);
+    setTurn(0);
+    setTarget(pickTarget(c));
+    setPhase("ready");
+    if (c.mode === "group") profile.setLastPlayers(c.players);
+  };
+
+  const next = useCallback(() => {
+    if (!config) return;
+    if (turn + 1 >= totalTurns) {
+      sfx.fanfare();
+      setPhase("podium");
+      return;
+    }
+    setTurn((n) => n + 1);
+    // Mesmo alvo para todos na rodada; sorteia de novo quando a rodada vira.
+    const nextRound = Math.floor((turn + 1) / players.length);
+    if (config.mode === "solo" || nextRound !== round) setTarget(pickTarget(config));
+    setPhase("ready");
+  }, [config, turn, totalTurns, players.length, round]);
+
+  const act = useCallback(
+    (ts: number) => {
+      if (phase === "ready") {
+        startRef.current = ts;
+        sfx.start();
+        setPhase("running");
+      } else if (phase === "running") {
+        const elapsedMs = ts - startRef.current;
+        stoppedAtRef.current = performance.now();
+        const shot: Shot = { player: playerIdx, round, target, elapsedMs };
+        setShots((s) => [...s, shot]);
+        const err = errorMs(elapsedMs, target);
+        const v = verdict(err);
+        setIsRecord(
+          config?.mode === "solo" ? profile.saveLowerRecord(`${SLUG}:${target}`, Math.round(Math.abs(err))) : false,
+        );
+        sfx.stop();
+        setTimeout(() => (v === "perfect" || v === "surgical" ? sfx.win() : v === "broken" ? sfx.buzz() : sfx.good()), 150);
+        setPhase("result");
+      } else if (phase === "result") {
+        // Evita pular o resultado com um toque duplo sem querer.
+        if (performance.now() - stoppedAtRef.current > 700) next();
+      }
+    },
+    [phase, playerIdx, round, target, config, profile, next],
+  );
+
+  useEffect(() => {
+    if (phase !== "ready" && phase !== "running" && phase !== "result") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== "Space" && e.code !== "Enter") return;
+      const el = e.target as HTMLElement;
+      if (el.closest("input, textarea, button, a, dialog")) return;
+      e.preventDefault();
+      if (!e.repeat) act(e.timeStamp);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [phase, act]);
+
+  const hideMs = (config?.hideAfter ?? 3) * 1000;
+  useEffect(() => {
+    if (phase !== "running") return;
+    let id = 0;
+    const loop = () => {
+      const el = displayRef.current;
+      const elapsed = performance.now() - startRef.current;
+      if (el) {
+        const hidden = elapsed >= hideMs;
+        el.textContent = hidden ? L.hidden : formatSeconds(elapsed);
+        el.dataset.hidden = String(hidden);
+      }
+      id = requestAnimationFrame(loop);
+    };
+    id = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(id);
+  }, [phase, hideMs]);
+
+  if (phase === "setup" || !config) return <Setup initial={config} onStart={begin} />;
+
+  if (phase === "podium") {
+    return (
+      <Podium
+        players={players}
+        shots={shots}
+        onAgain={() => begin(config)}
+        onSetup={() => setPhase("setup")}
+      />
+    );
+  }
+
+  const err = lastShot ? errorMs(lastShot.elapsedMs, lastShot.target) : 0;
+  const v = verdict(err);
+  const record = profile.records[`${SLUG}:${target}`];
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="pop-sm flex items-center gap-3 rounded-2xl bg-cream px-4 py-2">
+          <span className="text-ink/60">{L.turnOf}</span>
+          <span className="font-display text-2xl font-extrabold">{players[playerIdx]}</span>
+        </div>
+        {config.mode === "group" && (
+          <div className="pop-sm rounded-2xl bg-cream px-4 py-2 font-display font-bold">
+            {L.round} {round + 1} {L.of} {config.rounds}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setPhase("setup")}
+          className="pop-sm pressable rounded-2xl bg-cream px-4 py-2 font-display font-bold"
+        >
+          ⚙️ {L.changeSetup}
+        </button>
+      </div>
+
+      <div
+        role="button"
+        tabIndex={-1}
+        aria-label={phase === "ready" ? L.pressToStart : phase === "running" ? L.pressToStop : undefined}
+        onPointerDown={(e) => {
+          if (phase === "ready" || phase === "running") {
+            e.preventDefault();
+            act(e.timeStamp);
+          }
+        }}
+        className={`pop relative flex min-h-[420px] touch-manipulation flex-col items-center justify-center gap-6 overflow-hidden rounded-[2rem] p-8 text-center select-none ${
+          phase === "result" ? "bg-cream" : "sunburst cursor-pointer"
+        }`}
+      >
+        <div className="rounded-full border-[3px] border-ink bg-cream px-5 py-1 font-display text-xl font-bold">
+          {L.targetLabel} <span className="text-pink">{formatSeconds(target * 1000)}s</span>
+        </div>
+
+        {phase !== "result" && (
+          <>
+            <div className="pop rounded-3xl bg-ink px-10 py-6">
+              <span
+                key={phase}
+                ref={displayRef}
+                data-hidden={phase === "running" && hideMs === 0}
+                className="block min-w-[5ch] font-mono text-8xl font-bold text-sun tabular-nums data-[hidden=true]:animate-pulse data-[hidden=true]:text-pink sm:text-9xl"
+              >
+                {phase === "running" && hideMs === 0 ? L.hidden : "0,00"}
+              </span>
+            </div>
+            <p className="font-display text-2xl font-extrabold">
+              {phase === "ready" ? L.pressToStart : L.pressToStop}
+            </p>
+          </>
+        )}
+
+        {phase === "result" && lastShot && (
+          <ResultView
+            elapsedMs={lastShot.elapsedMs}
+            err={err}
+            v={v}
+            isRecord={isRecord}
+            record={config.mode === "solo" ? record : undefined}
+          />
+        )}
+      </div>
+
+      {phase === "result" && lastShot && (
+        <div className="flex flex-wrap justify-center gap-4">
+          {turn + 1 >= totalTurns ? (
+            <BigButton color="bg-pink text-white" onClick={next}>
+              🏆 {L.seeResults}
+            </BigButton>
+          ) : (
+            <BigButton color="bg-pink text-white" onClick={next}>
+              {config.mode === "solo" ? `🔁 ${L.again}` : `${L.next}: ${players[(turn + 1) % players.length]} →`}
+            </BigButton>
+          )}
+          {config.mode === "solo" && <ShareButton elapsedMs={lastShot.elapsedMs} target={lastShot.target} />}
+        </div>
+      )}
+
+      {config.mode === "solo" && shots.length > 1 && (
+        <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
+          {shots.slice(-8).map((s, i) => {
+            const e = errorMs(s.elapsedMs, s.target);
+            return (
+              <span key={i} className={`rounded-full border-2 border-ink px-3 py-0.5 font-mono ${verdictColor[verdict(e)]}`}>
+                {formatDiff(e)}
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResultView({
+  elapsedMs,
+  err,
+  v,
+  isRecord,
+  record,
+}: {
+  elapsedMs: number;
+  err: number;
+  v: VerdictKey;
+  isRecord: boolean;
+  record?: number;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <p className="font-display text-xl text-ink/70">{L.stoppedAt}</p>
+      <motion.p
+        initial={{ scale: 0.4, rotate: -8, opacity: 0 }}
+        animate={{ scale: 1, rotate: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 380, damping: 14 }}
+        className="font-mono text-8xl font-bold tabular-nums sm:text-9xl"
+      >
+        {formatSeconds(elapsedMs)}s
+      </motion.p>
+      <motion.div
+        initial={{ scale: 2, opacity: 0, rotate: 10 }}
+        animate={{ scale: 1, opacity: 1, rotate: -3 }}
+        transition={{ delay: 0.2, type: "spring", stiffness: 300, damping: 12 }}
+        className={`pop rounded-2xl px-6 py-2 font-display text-4xl font-extrabold ${verdictColor[v]}`}
+      >
+        {L.verdicts[v]}
+      </motion.div>
+      <p className="font-display text-xl">
+        {L.diff}: <span className="font-mono font-bold">{formatDiff(err)}</span> · {roundPoints(err)} {L.points}
+      </p>
+      <AnimatePresence>
+        {isRecord && (
+          <motion.p
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="rounded-full bg-grape px-4 py-1 font-display font-bold text-white"
+          >
+            ⭐ {L.newRecord}
+          </motion.p>
+        )}
+      </AnimatePresence>
+      {record !== undefined && !isRecord && (
+        <p className="text-ink/60">
+          {L.record}: <span className="font-mono">±{formatDiff(record).slice(1)}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function BigButton({ children, color, onClick }: { children: React.ReactNode; color: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`pop pressable rounded-2xl px-8 py-4 font-display text-2xl font-extrabold ${color}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ShareButton({ elapsedMs, target }: { elapsedMs: number; target: number }) {
+  const [copied, setCopied] = useState(false);
+  const share = async () => {
+    const url = `${location.origin}/jogos/${SLUG}`;
+    const text = L.shareText(formatSeconds(elapsedMs), formatSeconds(target * 1000), url);
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* usuário cancelou */
+    }
+  };
+  return (
+    <BigButton color="bg-cyan" onClick={share}>
+      {copied ? `✅ ${L.copied}` : `📣 ${L.share}`}
+    </BigButton>
+  );
+}
+
+function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Config) => void }) {
+  const hydrated = useHydrated();
+  const { nickname, lastPlayers } = useProfile();
+  const [mode, setMode] = useState<Config["mode"]>(initial?.mode ?? "solo");
+  const [target, setTarget] = useState<Config["target"]>(initial?.target ?? 10);
+  const [hideAfter, setHideAfter] = useState(initial?.hideAfter ?? 3);
+  const [rounds, setRounds] = useState(initial?.rounds ?? 3);
+  const [players, setPlayers] = useState<string[] | null>(initial?.players ?? null);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
+
+  const defaults = lastPlayers.length ? lastPlayers : [nickname || "Jogador 1", "Jogador 2"];
+  const list = players ?? (hydrated ? defaults : []);
+
+  const addPlayer = () => {
+    const name = draft.trim().slice(0, 20);
+    if (!name || list.length >= MAX_PLAYERS) return;
+    setPlayers([...list, name]);
+    setDraft("");
+    setError("");
+    sfx.click();
+  };
+
+  const start = () => {
+    if (mode === "group" && list.length < 2) {
+      setError(L.needPlayers);
+      sfx.buzz();
+      return;
+    }
+    sfx.click();
+    onStart({ mode, target, hideAfter, rounds, players: list });
+  };
+
+  return (
+    <div className="pop flex flex-col gap-8 rounded-[2rem] bg-cream p-6 sm:p-10">
+      <h2 className="font-display text-3xl font-extrabold">{L.setupTitle}</h2>
+
+      <Field label={L.mode}>
+        <div className="grid grid-cols-2 gap-4">
+          {(
+            [
+              ["solo", "🧍", L.modeSolo, L.modeSoloHint],
+              ["group", "🎉", L.modeGroup, L.modeGroupHint],
+            ] as const
+          ).map(([value, icon, label, hint]) => (
+            <Choice key={value} active={mode === value} onClick={() => setMode(value)} className="flex items-center gap-4 p-4 text-left">
+              <span className="text-4xl">{icon}</span>
+              <span>
+                <span className="block font-display text-2xl font-extrabold">{label}</span>
+                <span className="text-sm text-ink/70">{hint}</span>
+              </span>
+            </Choice>
+          ))}
+        </div>
+      </Field>
+
+      <Field label={L.target}>
+        <div className="flex flex-wrap gap-3">
+          {TARGETS.map((s) => (
+            <Choice key={s} active={target === s} onClick={() => setTarget(s)}>
+              {s}
+              {L.seconds}
+            </Choice>
+          ))}
+          <Choice active={target === "surprise"} onClick={() => setTarget("surprise")}>
+            🎲 {L.surprise}
+          </Choice>
+        </div>
+      </Field>
+
+      <Field label={L.hideAfter}>
+        <div className="flex flex-wrap gap-3">
+          {HIDE_OPTIONS.map((s) => (
+            <Choice key={s} active={hideAfter === s} onClick={() => setHideAfter(s)}>
+              {s === 0 ? `🙈 ${L.hideNever}` : `${s}${L.seconds}`}
+            </Choice>
+          ))}
+        </div>
+      </Field>
+
+      {mode === "group" && (
+        <>
+          <Field label={`${L.players} (${list.length}/${MAX_PLAYERS})`}>
+            <div className="flex flex-wrap gap-2">
+              {list.map((p, i) => (
+                <span key={`${p}-${i}`} className="pop-sm flex items-center gap-2 rounded-full bg-sun py-1 pr-1 pl-4 font-display font-bold">
+                  {p}
+                  <button
+                    type="button"
+                    aria-label={`${L.removePlayer} ${p}`}
+                    onClick={() => setPlayers(list.filter((_, j) => j !== i))}
+                    className="grid size-7 place-items-center rounded-full bg-cream hover:bg-pink hover:text-white"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <form
+              className="mt-3 flex gap-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                addPlayer();
+              }}
+            >
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={L.playerPlaceholder}
+                maxLength={20}
+                className="pop-sm min-w-0 flex-1 rounded-xl bg-white px-4 py-2 text-lg outline-none focus:bg-sun/20"
+              />
+              <button type="submit" className="pop-sm pressable rounded-xl bg-cyan px-5 font-display font-bold">
+                + {L.addPlayer}
+              </button>
+            </form>
+          </Field>
+
+          <Field label={L.rounds}>
+            <div className="flex flex-wrap gap-3">
+              {ROUND_OPTIONS.map((r) => (
+                <Choice key={r} active={rounds === r} onClick={() => setRounds(r)}>
+                  {r}
+                </Choice>
+              ))}
+            </div>
+          </Field>
+        </>
+      )}
+
+      {error && <p className="font-bold text-pink">{error}</p>}
+
+      <button
+        type="button"
+        onClick={start}
+        className="pop pressable self-start rounded-2xl bg-pink px-10 py-4 font-display text-2xl font-extrabold text-white"
+      >
+        ▶ {L.start}
+      </button>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="font-display text-lg font-bold text-ink/70">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function Choice({
+  active,
+  onClick,
+  children,
+  className = "px-5 py-2 font-display text-lg font-bold",
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={() => {
+        onClick();
+        sfx.click();
+      }}
+      className={`pop-sm pressable rounded-2xl ${active ? "bg-sun" : "bg-white"} ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Podium({
+  players,
+  shots,
+  onAgain,
+  onSetup,
+}: {
+  players: string[];
+  shots: Shot[];
+  onAgain: () => void;
+  onSetup: () => void;
+}) {
+  const table = standings(players.length, shots);
+  const medals = ["🥇", "🥈", "🥉"];
+  const podiumColors = ["bg-sun", "bg-cyan", "bg-tomato"];
+  const order = [1, 0, 2].filter((i) => i < table.length);
+  const heights = ["h-48", "h-36", "h-28"];
+
+  return (
+    <div className="pop flex flex-col items-center gap-10 rounded-[2rem] bg-cream p-6 sm:p-10">
+      <h2 className="font-display text-5xl font-extrabold">🏆 {L.podiumTitle}</h2>
+
+      <div className="flex items-end justify-center gap-4">
+        {order.map((pos, i) => {
+          const s = table[pos];
+          return (
+            <motion.div
+              key={s.player}
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.25 * (2 - pos), type: "spring", stiffness: 200, damping: 16 }}
+              className="flex w-36 flex-col items-center gap-2"
+            >
+              <span className="text-5xl">{medals[pos]}</span>
+              <span className="max-w-full truncate font-display text-xl font-extrabold">{players[s.player]}</span>
+              <span className="font-mono">{s.total} pts</span>
+              <div
+                className={`pop-sm flex w-full items-start justify-center rounded-t-2xl pt-3 font-display text-4xl font-extrabold ${podiumColors[pos]} ${heights[pos]}`}
+                data-order={i}
+              >
+                {pos + 1}
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <table className="w-full max-w-xl text-left">
+        <thead>
+          <tr className="border-b-[3px] border-ink font-display">
+            <th className="py-2">#</th>
+            <th>{L.players}</th>
+            <th className="text-right">{L.avgError}</th>
+            <th className="text-right">{L.total}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {table.map((s, i) => (
+            <tr key={s.player} className="border-b border-ink/15">
+              <td className="py-2 font-display font-bold">{i + 1}</td>
+              <td className="font-semibold">{players[s.player]}</td>
+              <td className="text-right font-mono">±{formatDiff(s.avgAbsErr).slice(1)}</td>
+              <td className="text-right font-mono font-bold">{s.total}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="flex flex-wrap justify-center gap-4">
+        <BigButton color="bg-pink text-white" onClick={onAgain}>
+          🔁 {L.playAgain}
+        </BigButton>
+        <BigButton color="bg-white" onClick={onSetup}>
+          ⚙️ {L.changeSetup}
+        </BigButton>
+      </div>
+    </div>
+  );
+}

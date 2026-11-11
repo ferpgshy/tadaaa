@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1b1035;
+  --color-paper: #fff6df;
+  --color-cream: #fffbef;
+  --color-sun: #ffc93c;
+  --color-pink: #ff3d7f;
+  --color-cyan: #19c3d6;
+  --color-grape: #7b3fe4;
+  --color-lime: #8fd14f;
+  --color-tomato: #ff6b3d;
+
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --shadow-pop: 6px 6px 0 0 var(--color-ink);
+  --shadow-pop-sm: 3px 3px 0 0 var(--color-ink);
+  --shadow-pop-lg: 10px 10px 0 0 var(--color-ink);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-paper);
+  background-image: radial-gradient(color-mix(in oklab, var(--color-ink) 9%, transparent) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+  color: var(--color-ink);
+}
+
+@layer components {
+  .pop {
+    border: 3px solid var(--color-ink);
+    box-shadow: var(--shadow-pop);
+  }
+  .pop-sm {
+    border: 3px solid var(--color-ink);
+    box-shadow: var(--shadow-pop-sm);
+  }
+  .pressable {
+    transition:
+      transform 90ms ease,
+      box-shadow 90ms ease;
+    cursor: pointer;
+  }
+  .pressable:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0 0 var(--color-ink);
+  }
+  .pressable:active {
+    transform: translate(4px, 4px);
+    box-shadow: 1px 1px 0 0 var(--color-ink);
+  }
+  .pressable:focus-visible {
+    outline: 4px solid var(--color-cyan);
+    outline-offset: 3px;
+  }
+  .sunburst {
+    background-image: repeating-conic-gradient(
+      from 0deg at 50% 115%,
+      #ffd766 0deg 9deg,
+      var(--color-sun) 9deg 18deg
+    );
+  }
+  .marquee-lights {
+    background-image: radial-gradient(circle, #fff7c2 0 4px, transparent 5px);
+    background-size: 26px 26px;
+    background-position: 0 50%;
+    background-repeat: repeat-x;
+    animation: bulbs 1.2s steps(2) infinite;
+  }
+}
+
+@keyframes bulbs {
+  to {
+    background-position: 13px 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-lights {
+    animation: none;
+  }
+}
