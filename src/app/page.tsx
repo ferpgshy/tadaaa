@@ -10,16 +10,16 @@ export default function Home() {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-14 px-4 py-8 sm:px-6 sm:py-10 lg:gap-20">
-      <section className="sunburst relative overflow-hidden rounded-4xl bd px-5 py-12 text-center shadow-pop-lg sm:px-12 sm:py-20 lg:py-24">
+      <section className="sunburst relative overflow-hidden rounded-4xl bd px-5 py-9 text-center shadow-pop-lg sm:px-12 sm:py-20 lg:py-24">
         <p className="mx-auto mb-5 w-fit -rotate-1 rounded-full bd bg-cream px-4 py-1 font-display text-xs font-bold sm:text-sm">
           {t.home.heroKicker}
         </p>
         <h1 className="mx-auto max-w-4xl font-display text-[2.6rem] leading-[0.95] font-extrabold tracking-tight sm:text-7xl lg:text-8xl">
           {t.home.heroTitle}
         </h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg font-medium sm:text-xl lg:text-2xl">{t.home.heroText}</p>
+        <p className="mx-auto mt-4 max-w-2xl text-base font-medium sm:mt-6 sm:text-xl lg:text-2xl">{t.home.heroText}</p>
         {live[0] && (
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3 sm:mt-9 sm:gap-4">
             <Link
               href={gameHref(live[0].slug)}
               className="pop pressable inline-block rotate-1 rounded-2xl bg-primary px-7 py-4 font-display text-xl font-extrabold text-on-primary sm:px-8 sm:text-2xl"

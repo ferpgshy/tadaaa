@@ -52,7 +52,8 @@ export function Header() {
           <button
             type="button"
             onClick={() => dialogRef.current?.showModal()}
-            aria-label={t.header.profile}
+            aria-label={`${hydrated && nickname ? nickname : t.profile.defaultNick} · ${t.header.profile}`}
+            aria-haspopup="dialog"
             className="pop-sm pressable flex shrink-0 items-center gap-2 rounded-xl bg-cream p-1 text-ink sm:p-1.5 sm:pr-4"
           >
             <span className="grid size-8 place-items-center rounded-lg bg-sun text-lg sm:text-xl">{hydrated ? avatar : "😎"}</span>

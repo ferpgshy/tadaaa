@@ -34,7 +34,7 @@ export function GameCard({ game, big = false }: { game: GameEntry; big?: boolean
           <h3 className="font-display text-4xl leading-tight font-extrabold lg:text-5xl">{info.name}</h3>
           <p className="text-lg text-ink/75 lg:text-xl">{info.tagline}</p>
           <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4">
-            <span className="text-sm font-semibold text-ink/60">
+            <span className="text-sm font-semibold text-ink/70">
               👥 {t.home.players}: {info.players}
             </span>
             <span className="pop-sm rounded-xl bg-primary px-5 py-2 font-display text-lg font-extrabold text-on-primary">
@@ -59,7 +59,7 @@ export function GameCard({ game, big = false }: { game: GameEntry; big?: boolean
       <div className="flex flex-1 flex-col gap-1.5 p-5">
         <h3 className="font-display text-xl leading-tight font-extrabold">{info.name}</h3>
         <p className="text-sm text-ink/70">{info.tagline}</p>
-        <p className="mt-auto pt-2 text-xs font-semibold text-ink/50">
+        <p className="mt-auto pt-2 text-xs font-semibold text-ink/70">
           👥 {t.home.players}: {info.players}
         </p>
       </div>

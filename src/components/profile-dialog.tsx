@@ -29,11 +29,21 @@ export function ProfileDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
         method="dialog"
         className="flex flex-col gap-5 p-6"
         onSubmit={() => {
-          store.setProfile(nick, avatar);
+          store.setProfile(nick.trim(), avatar);
           sfx.good();
         }}
       >
-        <h2 className="font-display text-3xl font-extrabold">{t.profile.title}</h2>
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="font-display text-3xl font-extrabold">{t.profile.title}</h2>
+          <button
+            type="button"
+            onClick={(e) => e.currentTarget.closest("dialog")?.close()}
+            aria-label={t.profile.close}
+            className="pop-sm pressable grid size-10 shrink-0 place-items-center rounded-xl bg-field text-xl font-bold"
+          >
+            ×
+          </button>
+        </div>
 
         <label className="flex flex-col gap-2">
           <span className="font-display font-bold">{t.profile.nickname}</span>
@@ -68,7 +78,7 @@ export function ProfileDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
           </div>
         </fieldset>
 
-        <p className="text-sm text-ink/60">{t.profile.note}</p>
+        <p className="text-sm text-ink/70">{t.profile.note}</p>
 
         <button type="submit" className="pop pressable rounded-2xl bg-primary py-3 font-display text-xl font-extrabold text-on-primary">
           {t.profile.save}

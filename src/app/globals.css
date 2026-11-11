@@ -54,7 +54,7 @@
   --grape: #a77bf3;
   --lime: #8fd14f;
   --tomato: #ff6b3d;
-  --primary: #ff3d7f;
+  --primary: #e0195e;
   --on-primary: #ffffff;
   --accent: #e8226a;
   --display: #1b1035;
@@ -394,6 +394,10 @@ html[data-decor="off"] body {
   background-image:
     radial-gradient(60% 80% at 50% 110%, rgb(255 46 151 / 0.45), transparent 70%),
     repeating-conic-gradient(from 0deg at 50% 115%, var(--sun-2) 0deg 9deg, var(--sun) 9deg 18deg);
+}
+/* No Fliperama o texto secundário usa a cor cheia para manter o contraste */
+[data-theme="fliperama"] [class*="text-ink/"] {
+  color: var(--ink);
 }
 [data-theme="fliperama"] :is(h1, h2, h3) {
   letter-spacing: 0.02em;

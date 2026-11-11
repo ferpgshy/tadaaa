@@ -151,12 +151,23 @@ export function SettingsPanel() {
             })}
           </div>
         </Field>
+        <button
+          type="button"
+          onClick={() => {
+            profile.setOnboarded(false);
+            sfx.click();
+          }}
+          className="pop-sm pressable flex w-fit flex-col gap-0.5 rounded-2xl bg-field px-4 py-3 text-left"
+        >
+          <span className="font-display text-lg font-bold">👋 {t.onboarding.redo}</span>
+          <span className="text-sm text-ink/70">{t.onboarding.redoHint}</span>
+        </button>
       </Section>
 
       <Section title={S.sections.language} icon="🌎">
         <div className="flex flex-wrap items-center gap-3">
           <span className="pop-sm rounded-xl bg-sun px-4 py-2 font-display font-bold">🇧🇷 {S.languageCurrent}</span>
-          <span className="text-ink/60">{S.languageSoon}</span>
+          <span className="text-ink/70">{S.languageSoon}</span>
         </div>
       </Section>
 
@@ -261,7 +272,7 @@ function Toggle({
     >
       <span>
         <span className="block font-display text-lg font-bold">{label}</span>
-        {hint && <span className="block text-sm text-ink/60">{hint}</span>}
+        {hint && <span className="block text-sm text-ink/70">{hint}</span>}
       </span>
       <span
         className={`pop-sm relative h-9 w-16 shrink-0 rounded-full transition-colors ${checked ? "bg-lime" : "bg-field"}`}
@@ -312,7 +323,18 @@ function DangerButton({ label, hint, onConfirm }: { label: string; hint: string;
   );
 }
 
-function ThemeCard({ id, active, onPick }: { id: ThemeId; active: boolean; onPick: () => void }) {
+export function ThemeCard({
+  id,
+  active,
+  onPick,
+  compact = false,
+}: {
+  id: ThemeId;
+  active: boolean;
+  onPick: () => void;
+  /** Versão menor, usada nas boas-vindas. */
+  compact?: boolean;
+}) {
   const info = S.themes[id];
   return (
     <button
@@ -334,21 +356,23 @@ function ThemeCard({ id, active, onPick }: { id: ThemeId; active: boolean; onPic
           <span className="size-2.5 rounded-full bg-current opacity-60" />
         </span>
       </span>
-      <span className="sunburst bd-b flex items-center gap-3 p-4">
+      <span className={`sunburst bd-b flex items-center gap-3 ${compact ? "p-2.5" : "p-4"}`}>
         <span className="pop-sm flex flex-1 flex-col gap-2 rounded-xl bg-cream p-3">
           <span className="font-display text-sm font-extrabold">⏱️ {S.preview.card}</span>
           <span className="flex items-center gap-2">
             <span className="pop-sm rounded-lg bg-primary px-3 py-1 font-display text-xs font-extrabold text-on-primary">
               {S.preview.button}
             </span>
-            <span className="rounded-md bg-display px-2 py-0.5 font-mono text-xs font-bold text-display-fg">9,98</span>
+            {!compact && (
+              <span className="rounded-md bg-display px-2 py-0.5 font-mono text-xs font-bold text-display-fg">9,98</span>
+            )}
           </span>
         </span>
       </span>
-      <span className="flex items-center justify-between gap-3 bg-cream p-4">
+      <span className={`flex items-center justify-between gap-3 bg-cream ${compact ? "p-3" : "p-4"}`}>
         <span>
-          <span className="block font-display text-lg font-extrabold">{info.name}</span>
-          <span className="block text-sm text-ink/70">{info.hint}</span>
+          <span className={`block font-display font-extrabold ${compact ? "text-base" : "text-lg"}`}>{info.name}</span>
+          {!compact && <span className="block text-sm text-ink/70">{info.hint}</span>}
         </span>
         {active && (
           <span className="pop-sm grid size-8 shrink-0 place-items-center rounded-full bg-lime font-bold" aria-hidden>

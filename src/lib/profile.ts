@@ -10,6 +10,8 @@ type ProfileState = {
   nickname: string;
   avatar: string;
   muted: boolean;
+  /** Já passou pelas boas-vindas do primeiro acesso. */
+  onboarded: boolean;
   /** Melhores marcas por chave (ex.: "cronometro-cego:10" -> erro em ms). */
   records: Record<string, number>;
   lastPlayers: string[];
@@ -19,6 +21,7 @@ type ProfileState = {
   saveLowerRecord: (key: string, value: number) => "first" | "better" | false;
   setLastPlayers: (players: string[]) => void;
   setMuted: (muted: boolean) => void;
+  setOnboarded: (onboarded: boolean) => void;
   clearRecords: () => void;
   resetProfile: () => void;
 };
@@ -29,9 +32,11 @@ export const useProfile = create<ProfileState>()(
       nickname: "",
       avatar: AVATARS[0],
       muted: false,
+      onboarded: false,
       records: {},
       lastPlayers: [],
-      setProfile: (nickname, avatar) => set({ nickname: nickname.trim().slice(0, 24), avatar }),
+      // Só tira espaços do começo: tirar do fim impediria digitar "Rei do..." no campo.
+      setProfile: (nickname, avatar) => set({ nickname: nickname.replace(/^\s+/, "").slice(0, 24), avatar }),
       toggleMuted: () => set({ muted: !get().muted }),
       saveLowerRecord: (key, value) => {
         const current = get().records[key];
@@ -41,8 +46,9 @@ export const useProfile = create<ProfileState>()(
       },
       setLastPlayers: (players) => set({ lastPlayers: players }),
       setMuted: (muted) => set({ muted }),
+      setOnboarded: (onboarded) => set({ onboarded }),
       clearRecords: () => set({ records: {} }),
-      resetProfile: () => set({ nickname: "", avatar: AVATARS[0], lastPlayers: [] }),
+      resetProfile: () => set({ nickname: "", avatar: AVATARS[0], lastPlayers: [], onboarded: false }),
     }),
     { name: "partiko-profile", version: 1, storage: safeStorage },
   ),

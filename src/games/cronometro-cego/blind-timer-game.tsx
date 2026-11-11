@@ -55,6 +55,7 @@ export function BlindTimerGame() {
   const startRef = useRef(0);
   const stoppedAtRef = useRef(0);
   const displayRef = useRef<HTMLSpanElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
 
   const players = config?.mode === "group" ? config.players : [profile.nickname || t.profile.defaultNick];
   const playerIdx = turn % players.length;
@@ -118,6 +119,11 @@ export function BlindTimerGame() {
   useEffect(() => {
     if (phase !== "ready" && phase !== "running" && phase !== "result") return;
     const onKey = (e: KeyboardEvent) => {
+      // Esc volta para as regras (fora do meio de uma jogada).
+      if (e.key === "Escape" && phase !== "running" && !document.querySelector("dialog[open]")) {
+        setPhase("setup");
+        return;
+      }
       if (e.code !== "Space" && e.code !== "Enter") return;
       const el = e.target as HTMLElement;
       if (el.closest("input, textarea, button, a, dialog")) return;
@@ -127,6 +133,13 @@ export function BlindTimerGame() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, act]);
+
+  // No resultado, garante que os botões de ação (De novo / Próximo) apareçam na tela.
+  useEffect(() => {
+    if (phase !== "result") return;
+    const id = setTimeout(() => actionsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 350);
+    return () => clearTimeout(id);
+  }, [phase]);
 
   // Quando muda de tela (regras / jogo / pódio), garante que o topo do jogo fique visível.
   const view = phase === "setup" || phase === "podium" ? phase : "play";
@@ -179,22 +192,24 @@ export function BlindTimerGame() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="pop-sm flex items-center gap-3 rounded-2xl bg-cream px-4 py-2">
-          <span className="text-ink/60">{L.turnOf}</span>
-          <span className="font-display text-2xl font-extrabold">{players[playerIdx]}</span>
+      <div className="flex items-center justify-between gap-2 sm:gap-3">
+        <div className="pop-sm flex min-w-0 items-center gap-2 rounded-2xl bg-cream px-3 py-1.5 sm:gap-3 sm:px-4 sm:py-2">
+          <span className="shrink-0 text-sm text-ink/70 sm:text-base">{L.turnOf}</span>
+          <span className="truncate font-display text-xl font-extrabold sm:text-2xl">{players[playerIdx]}</span>
         </div>
         {config.mode === "group" && (
-          <div className="pop-sm rounded-2xl bg-cream px-4 py-2 font-display font-bold">
-            {L.round} {round + 1} {L.of} {config.rounds}
+          <div className="pop-sm shrink-0 rounded-2xl bg-cream px-3 py-1.5 font-display font-bold sm:px-4 sm:py-2">
+            <span className="hidden sm:inline">{L.round} </span>
+            {round + 1}/{config.rounds}
           </div>
         )}
         <button
           type="button"
           onClick={() => setPhase("setup")}
-          className="pop-sm pressable rounded-2xl bg-cream px-4 py-2 font-display font-bold"
+          aria-label={L.changeSetup}
+          className="pop-sm pressable shrink-0 rounded-2xl bg-cream px-3 py-1.5 font-display font-bold sm:px-4 sm:py-2"
         >
-          ⚙️ {L.changeSetup}
+          ⚙️<span className="hidden sm:inline"> {L.changeSetup}</span>
         </button>
       </div>
 
@@ -208,7 +223,7 @@ export function BlindTimerGame() {
             act(e.timeStamp);
           }
         }}
-        className={`pop relative flex min-h-[380px] touch-manipulation flex-col items-center justify-center gap-6 overflow-hidden rounded-4xl p-5 text-center select-none sm:p-8 lg:min-h-[480px] ${
+        className={`pop relative flex min-h-[320px] touch-manipulation flex-col items-center justify-center gap-4 sm:min-h-[380px] sm:gap-6 overflow-hidden rounded-4xl p-5 text-center select-none sm:p-8 lg:min-h-[480px] ${
           phase === "result" ? "bg-cream" : "sunburst cursor-pointer"
         }`}
       >
@@ -235,6 +250,13 @@ export function BlindTimerGame() {
           </>
         )}
 
+        <p className="sr-only" aria-live="polite">
+          {phase === "result" && lastShot
+            ? `${L.stoppedAt} ${formatSeconds(lastShot.elapsedMs)}s. ${L.verdicts[v]}. ${L.diff} ${formatDiff(err)}.`
+            : phase === "running"
+              ? L.running
+              : ""}
+        </p>
         {phase === "result" && lastShot && (
           <ResultView
             elapsedMs={lastShot.elapsedMs}
@@ -247,7 +269,7 @@ export function BlindTimerGame() {
       </div>
 
       {phase === "result" && lastShot && (
-        <div className="flex flex-wrap justify-center gap-4">
+        <div ref={actionsRef} className="flex scroll-mb-6 flex-wrap justify-center gap-3 sm:gap-4">
           {turn + 1 >= totalTurns ? (
             <BigButton color="bg-primary text-on-primary" onClick={next}>
               🏆 {L.seeResults}
@@ -291,7 +313,7 @@ export function BlindTimerRecords() {
     <div className="pop-sm rounded-3xl bg-cream p-5">
       <h2 className="mb-3 font-display text-xl font-extrabold">⭐ {L.recordsTitle}</h2>
       {mine.length === 0 ? (
-        <p className="text-ink/60">{L.noRecords}</p>
+        <p className="text-ink/70">{L.noRecords}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {mine.map(([target, err]) => (
@@ -326,8 +348,8 @@ function ResultView({
 }) {
   const isRecord = status === "better";
   return (
-    <div className="flex flex-col items-center gap-4">
-      <p className="font-display text-xl text-ink/70">{L.stoppedAt}</p>
+    <div className="flex flex-col items-center gap-3 sm:gap-4">
+      <p className="font-display text-lg text-ink/70 sm:text-xl">{L.stoppedAt}</p>
       <motion.p
         initial={{ scale: 0.4, rotate: -8, opacity: 0 }}
         animate={{ scale: 1, rotate: 0, opacity: 1 }}
@@ -340,7 +362,7 @@ function ResultView({
         initial={{ scale: 2, opacity: 0, rotate: 10 }}
         animate={{ scale: 1, opacity: 1, rotate: -3 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 300, damping: 12 }}
-        className={`pop rounded-2xl px-6 py-2 text-center font-display text-3xl font-extrabold sm:text-4xl ${verdictColor[v]}`}
+        className={`pop rounded-2xl px-6 py-2 text-center font-display text-2xl font-extrabold sm:text-4xl ${verdictColor[v]}`}
       >
         {L.verdicts[v]}
       </motion.div>
@@ -358,9 +380,9 @@ function ResultView({
           </motion.p>
         )}
       </AnimatePresence>
-      {status === "first" && <p className="text-ink/60">{L.firstMark}</p>}
+      {status === "first" && <p className="text-ink/70">{L.firstMark}</p>}
       {record !== undefined && !status && (
-        <p className="text-ink/60">
+        <p className="text-ink/70">
           {L.record}: <span className="font-mono">±{formatDiff(record).slice(1)}</span>
         </p>
       )}
@@ -420,7 +442,16 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
 
   const addPlayer = () => {
     const name = draft.trim().slice(0, 20);
-    if (!name || list.length >= MAX_PLAYERS) return;
+    if (!name) return;
+    if (list.length >= MAX_PLAYERS) {
+      setError(L.maxPlayers);
+      return;
+    }
+    if (list.some((p) => p.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      setError(L.duplicatePlayer);
+      sfx.buzz();
+      return;
+    }
     setPlayers([...list, name]);
     setDraft("");
     setError("");

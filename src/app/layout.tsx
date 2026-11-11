@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Fredoka, Geist, Geist_Mono, Orbitron, Silkscreen } from "next/font/google";
 import { Header } from "@/components/header";
+import { Onboarding } from "@/components/onboarding";
 import { SettingsProvider, settingsBootScript } from "@/components/settings-provider";
 import { t } from "@/i18n";
 import "./globals.css";
@@ -27,6 +28,13 @@ const silkscreen = Silkscreen({ variable: "--font-silkscreen", subsets: ["latin"
 const fredoka = Fredoka({ variable: "--font-fredoka", subsets: ["latin"], weight: ["400", "500", "700"], preload: false });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://playtadaaa.vercel.app"),
+  openGraph: {
+    siteName: t.brand.name,
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
   title: {
     default: `${t.brand.name} · jogos de festa no navegador`,
     template: `%s · ${t.brand.name}`,
@@ -57,8 +65,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col font-sans">
         <SettingsProvider>
           <Header />
+          <Onboarding />
           <main className="flex-1">{children}</main>
-          <footer className="px-6 py-8 text-center text-sm text-ink/60">
+          <footer className="px-6 py-8 text-center text-sm text-ink/70">
             {t.brand.name} · {t.profile.note}
           </footer>
         </SettingsProvider>
