@@ -25,6 +25,8 @@ export const ptBR = {
     heroText:
       "Os desafios que estão em alta nos canais de jogos e trivia, prontos para jogar sozinho ou com a galera.",
     heroCta: "Jogar agora",
+    play: "Jogar",
+    comingCount: (n: number) => `+${n} jogos chegando`,
     liveTitle: "No ar",
     soonTitle: "Em breve no palco",
     soonBadge: "Em breve",
@@ -155,11 +157,14 @@ export const ptBR = {
     targetLabel: "Pare em",
     pressToStart: "Aperte ESPAÇO ou clique para começar",
     pressToStop: "Aperte ESPAÇO ou clique para parar",
+    tapToStart: "Toque para começar",
+    tapToStop: "Toque para parar",
     hidden: "??,??",
     stoppedAt: "Você parou em",
     diff: "Diferença",
     points: "pontos",
     newRecord: "Novo recorde!",
+    firstMark: "Primeira marca salva. Agora tenta bater!",
     record: "Seu recorde neste alvo",
     again: "De novo",
     next: "Próximo",
@@ -183,6 +188,15 @@ export const ptBR = {
     },
     howTo:
       "O cronômetro aparece e some. Conte na cabeça e pare o mais perto possível do alvo.",
+    howToTitle: "Como jogar",
+    steps: [
+      "Escolha o alvo e quando o tempo some.",
+      "Aperte ESPAÇO (ou toque) para começar.",
+      "Conte na cabeça e aperte de novo no alvo.",
+      "1000 pontos no exato, menos 1 por milésimo de erro.",
+    ],
+    recordsTitle: "Seus recordes",
+    noRecords: "Jogue no modo Solo para marcar recordes.",
   },
 } as const;
 

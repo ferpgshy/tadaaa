@@ -50,7 +50,7 @@ export function BlindTimerGame() {
   const [turn, setTurn] = useState(0);
   const [target, setTarget] = useState(10);
   const [shots, setShots] = useState<Shot[]>([]);
-  const [isRecord, setIsRecord] = useState(false);
+  const [recordStatus, setRecordStatus] = useState<"first" | "better" | false>(false);
 
   const startRef = useRef(0);
   const stoppedAtRef = useRef(0);
@@ -100,9 +100,10 @@ export function BlindTimerGame() {
         setShots((s) => [...s, shot]);
         const err = errorMs(elapsedMs, target);
         const v = verdict(err);
-        setIsRecord(
-          config?.mode === "solo" ? profile.saveLowerRecord(`${SLUG}:${target}`, Math.round(Math.abs(err))) : false,
-        );
+        const saved =
+          config?.mode === "solo" ? profile.saveLowerRecord(`${SLUG}:${target}`, Math.round(Math.abs(err))) : false;
+        // Só comemora quando bate uma marca anterior (a primeira jogada sempre "seria" recorde).
+        setRecordStatus(saved);
         sfx.stop();
         setTimeout(() => (v === "perfect" || v === "surgical" ? sfx.win() : v === "broken" ? sfx.buzz() : sfx.good()), 150);
         setPhase("result");
@@ -126,6 +127,20 @@ export function BlindTimerGame() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, act]);
+
+  // Quando muda de tela (regras / jogo / pódio), garante que o topo do jogo fique visível.
+  const view = phase === "setup" || phase === "podium" ? phase : "play";
+  const firstView = useRef(true);
+  useEffect(() => {
+    if (firstView.current) {
+      firstView.current = false;
+      return;
+    }
+    const el = document.getElementById("game");
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    if (top < 0 || top > window.innerHeight * 0.4) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [view]);
 
   const hideMs = (config?.hideAfter ?? 3) * 1000;
   useEffect(() => {
@@ -193,7 +208,7 @@ export function BlindTimerGame() {
             act(e.timeStamp);
           }
         }}
-        className={`pop relative flex min-h-[420px] touch-manipulation flex-col items-center justify-center gap-6 overflow-hidden rounded-[2rem] p-8 text-center select-none ${
+        className={`pop relative flex min-h-[380px] touch-manipulation flex-col items-center justify-center gap-6 overflow-hidden rounded-[2rem] p-5 text-center select-none sm:p-8 lg:min-h-[480px] ${
           phase === "result" ? "bg-cream" : "sunburst cursor-pointer"
         }`}
       >
@@ -203,18 +218,19 @@ export function BlindTimerGame() {
 
         {phase !== "result" && (
           <>
-            <div className="pop rounded-3xl bg-ink px-10 py-6">
+            <div className="pop rounded-3xl bg-ink px-6 py-5 sm:px-10 sm:py-6">
               <span
                 key={phase}
                 ref={displayRef}
                 data-hidden={phase === "running" && hideMs === 0}
-                className="block min-w-[5ch] font-mono text-8xl font-bold text-sun tabular-nums data-[hidden=true]:animate-pulse data-[hidden=true]:text-pink sm:text-9xl"
+                className="block min-w-[5ch] font-mono text-7xl font-bold text-sun tabular-nums data-[hidden=true]:animate-pulse data-[hidden=true]:text-pink sm:text-8xl xl:text-9xl"
               >
                 {phase === "running" && hideMs === 0 ? L.hidden : "0,00"}
               </span>
             </div>
-            <p className="font-display text-2xl font-extrabold">
-              {phase === "ready" ? L.pressToStart : L.pressToStop}
+            <p className="font-display text-xl font-extrabold sm:text-2xl">
+              <span className="pointer-coarse:hidden">{phase === "ready" ? L.pressToStart : L.pressToStop}</span>
+              <span className="hidden pointer-coarse:inline">{phase === "ready" ? L.tapToStart : L.tapToStop}</span>
             </p>
           </>
         )}
@@ -224,7 +240,7 @@ export function BlindTimerGame() {
             elapsedMs={lastShot.elapsedMs}
             err={err}
             v={v}
-            isRecord={isRecord}
+            status={recordStatus}
             record={config.mode === "solo" ? record : undefined}
           />
         )}
@@ -261,19 +277,54 @@ export function BlindTimerGame() {
   );
 }
 
+export function BlindTimerRecords() {
+  const hydrated = useHydrated();
+  const records = useProfile((s) => s.records);
+  const mine = hydrated
+    ? Object.entries(records)
+        .filter(([k]) => k.startsWith(`${SLUG}:`))
+        .map(([k, v]) => [Number(k.split(":")[1]), v] as const)
+        .sort((a, b) => a[0] - b[0])
+    : [];
+
+  return (
+    <div className="pop-sm rounded-3xl bg-cream p-5">
+      <h2 className="mb-3 font-display text-xl font-extrabold">⭐ {L.recordsTitle}</h2>
+      {mine.length === 0 ? (
+        <p className="text-ink/60">{L.noRecords}</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {mine.map(([target, err]) => (
+            <li key={target} className="flex items-center justify-between border-b border-ink/10 pb-2 last:border-0">
+              <span className="font-display font-bold">
+                {L.target} {target}
+                {L.seconds}
+              </span>
+              <span className={`rounded-full border-2 border-ink px-3 font-mono text-sm ${verdictColor[verdict(err)]}`}>
+                ±{formatDiff(err).slice(1)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function ResultView({
   elapsedMs,
   err,
   v,
-  isRecord,
+  status,
   record,
 }: {
   elapsedMs: number;
   err: number;
   v: VerdictKey;
-  isRecord: boolean;
+  status: "first" | "better" | false;
   record?: number;
 }) {
+  const isRecord = status === "better";
   return (
     <div className="flex flex-col items-center gap-4">
       <p className="font-display text-xl text-ink/70">{L.stoppedAt}</p>
@@ -281,7 +332,7 @@ function ResultView({
         initial={{ scale: 0.4, rotate: -8, opacity: 0 }}
         animate={{ scale: 1, rotate: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 380, damping: 14 }}
-        className="font-mono text-8xl font-bold tabular-nums sm:text-9xl"
+        className="font-mono text-7xl font-bold tabular-nums sm:text-8xl xl:text-9xl"
       >
         {formatSeconds(elapsedMs)}s
       </motion.p>
@@ -289,11 +340,11 @@ function ResultView({
         initial={{ scale: 2, opacity: 0, rotate: 10 }}
         animate={{ scale: 1, opacity: 1, rotate: -3 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 300, damping: 12 }}
-        className={`pop rounded-2xl px-6 py-2 font-display text-4xl font-extrabold ${verdictColor[v]}`}
+        className={`pop rounded-2xl px-6 py-2 text-center font-display text-3xl font-extrabold sm:text-4xl ${verdictColor[v]}`}
       >
         {L.verdicts[v]}
       </motion.div>
-      <p className="font-display text-xl">
+      <p className="text-center font-display text-lg sm:text-xl">
         {L.diff}: <span className="font-mono font-bold">{formatDiff(err)}</span> · {roundPoints(err)} {L.points}
       </p>
       <AnimatePresence>
@@ -307,7 +358,8 @@ function ResultView({
           </motion.p>
         )}
       </AnimatePresence>
-      {record !== undefined && !isRecord && (
+      {status === "first" && <p className="text-ink/60">{L.firstMark}</p>}
+      {record !== undefined && !status && (
         <p className="text-ink/60">
           {L.record}: <span className="font-mono">±{formatDiff(record).slice(1)}</span>
         </p>
@@ -386,7 +438,7 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
   };
 
   return (
-    <div className="pop flex flex-col gap-8 rounded-[2rem] bg-cream p-6 sm:p-10">
+    <div className="pop flex flex-col gap-7 rounded-[2rem] bg-cream p-5 sm:p-8 lg:p-10">
       <h2 className="font-display text-3xl font-extrabold">{L.setupTitle}</h2>
 
       <Field label={L.mode}>
@@ -397,11 +449,16 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
               ["group", "🎉", L.modeGroup, L.modeGroupHint],
             ] as const
           ).map(([value, icon, label, hint]) => (
-            <Choice key={value} active={mode === value} onClick={() => setMode(value)} className="flex items-center gap-4 p-4 text-left">
-              <span className="text-4xl">{icon}</span>
-              <span>
-                <span className="block font-display text-2xl font-extrabold">{label}</span>
-                <span className="text-sm text-ink/70">{hint}</span>
+            <Choice
+              key={value}
+              active={mode === value}
+              onClick={() => setMode(value)}
+              className="flex min-w-0 flex-col items-start gap-2 p-4 text-left sm:flex-row sm:items-center sm:gap-4"
+            >
+              <span className="text-3xl sm:text-4xl">{icon}</span>
+              <span className="min-w-0">
+                <span className="block font-display text-xl font-extrabold sm:text-2xl">{label}</span>
+                <span className="block text-sm text-ink/70">{hint}</span>
               </span>
             </Choice>
           ))}

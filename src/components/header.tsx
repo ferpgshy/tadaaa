@@ -5,6 +5,7 @@ import { useRef } from "react";
 import { t } from "@/i18n";
 import { useProfile } from "@/lib/profile";
 import { useHydrated } from "@/lib/use-hydrated";
+import { SoundOff, SoundOn } from "./icons";
 import { ProfileDialog } from "./profile-dialog";
 
 export function Header() {
@@ -15,7 +16,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 border-b-[3px] border-ink bg-grape">
       <div className="marquee-lights h-3 bg-ink" aria-hidden />
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link
           href="/"
           className="pop-sm pressable -rotate-2 rounded-xl bg-sun px-4 py-1 font-display text-2xl font-extrabold tracking-tight"
@@ -36,9 +37,9 @@ export function Header() {
             onClick={toggleMuted}
             aria-label={hydrated && muted ? t.header.unmute : t.header.mute}
             title={hydrated && muted ? t.header.unmute : t.header.mute}
-            className="pop-sm pressable grid size-11 place-items-center rounded-xl bg-cream text-xl"
+            className="pop-sm pressable grid size-11 place-items-center rounded-xl bg-cream"
           >
-            {hydrated && muted ? "🔇" : "🔊"}
+            {hydrated && muted ? <SoundOff className="size-6 text-pink" /> : <SoundOn className="size-6" />}
           </button>
           <button
             type="button"

@@ -65,6 +65,20 @@ body {
       var(--color-sun) 9deg 18deg
     );
   }
+  .sunburst-soft {
+    background-image: repeating-conic-gradient(
+      from 0deg at 50% 50%,
+      rgb(255 255 255 / 0.14) 0deg 10deg,
+      transparent 10deg 20deg
+    );
+  }
+  .soon-stripes {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgb(255 255 255 / 0.22) 0 10px,
+      transparent 10px 20px
+    );
+  }
   .marquee-lights {
     background-image: radial-gradient(circle, #fff7c2 0 4px, transparent 5px);
     background-size: 26px 26px;

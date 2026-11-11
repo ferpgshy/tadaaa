@@ -14,8 +14,8 @@ type ProfileState = {
   lastPlayers: string[];
   setProfile: (nickname: string, avatar: string) => void;
   toggleMuted: () => void;
-  /** Salva se for melhor (menor). Retorna true quando é recorde novo. */
-  saveLowerRecord: (key: string, value: number) => boolean;
+  /** Salva se for melhor (menor). "first" = primeira marca, "better" = bateu o recorde. */
+  saveLowerRecord: (key: string, value: number) => "first" | "better" | false;
   setLastPlayers: (players: string[]) => void;
 };
 
@@ -49,7 +49,7 @@ export const useProfile = create<ProfileState>()(
         const current = get().records[key];
         if (current !== undefined && current <= value) return false;
         set({ records: { ...get().records, [key]: value } });
-        return true;
+        return current === undefined ? "first" : "better";
       },
       setLastPlayers: (players) => set({ lastPlayers: players }),
     }),
