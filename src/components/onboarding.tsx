@@ -3,9 +3,12 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { t } from "@/i18n";
+import { sanitizeAvatar, type AvatarConfig } from "@/lib/avatar";
 import { AVATARS, useProfile } from "@/lib/profile";
 import { TEXT_SIZES, THEMES, useSettings } from "@/lib/settings";
 import { sfx } from "@/lib/sfx";
+import { Avatar } from "./avatar";
+import { AvatarPicker } from "./avatar-picker";
 import { ThemeCard } from "./settings-panel";
 
 const O = t.onboarding;
@@ -32,6 +35,7 @@ export function Onboarding() {
   const [dir, setDir] = useState(1);
   const [nick, setNick] = useState("");
   const [avatar, setAvatar] = useState<string>(AVATARS[0]);
+  const [custom, setCustom] = useState<AvatarConfig | null>(null);
 
   const open = restored && !profile.onboarded;
 
@@ -49,7 +53,10 @@ export function Onboarding() {
   };
 
   const finish = (save: boolean) => {
-    if (save) profile.setProfile(nick.trim(), avatar);
+    if (save) {
+      profile.setProfile(nick.trim(), avatar);
+      profile.setAvatarCustom(custom);
+    }
     profile.setOnboarded(true);
     if (save) sfx.win();
   };
@@ -66,6 +73,7 @@ export function Onboarding() {
           const p = useProfile.getState();
           setNick(p.nickname);
           setAvatar(p.avatar);
+          setCustom(sanitizeAvatar(p.avatarCustom));
           setStep(0);
         }
       }}
@@ -131,24 +139,7 @@ export function Onboarding() {
                   </label>
                   <fieldset>
                     <legend className="mb-2 font-display font-bold">{t.profile.avatar}</legend>
-                    <div className="grid grid-cols-6 gap-2 sm:flex sm:flex-wrap">
-                      {AVATARS.map((a) => (
-                        <button
-                          key={a}
-                          type="button"
-                          aria-pressed={avatar === a}
-                          onClick={() => {
-                            setAvatar(a);
-                            sfx.click();
-                          }}
-                          className={`grid aspect-square place-items-center rounded-xl text-2xl transition sm:size-14 sm:text-3xl ${
-                            avatar === a ? "pop-sm scale-105 bg-sun" : "bg-field hover:scale-105"
-                          }`}
-                        >
-                          {a}
-                        </button>
-                      ))}
-                    </div>
+                    <AvatarPicker compact emoji={avatar} custom={custom} onEmoji={setAvatar} onCustom={setCustom} />
                   </fieldset>
                   <Nav onNext={() => go(1)} submit />
                 </form>
@@ -214,7 +205,7 @@ export function Onboarding() {
                   </Row>
                 </div>
                 <p className="pop-sm flex items-center gap-3 rounded-2xl bg-sun px-4 py-3 font-display text-lg font-extrabold">
-                  <span className="text-2xl">{avatar}</span> {O.ready(name)}
+                  {custom ? <Avatar config={custom} size={40} /> : <span className="text-2xl">{avatar}</span>} {O.ready(name)}
                 </p>
                 <Nav onBack={() => go(1)} onNext={() => finish(true)} last />
               </>

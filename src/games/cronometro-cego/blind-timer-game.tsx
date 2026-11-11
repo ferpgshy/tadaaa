@@ -6,6 +6,7 @@ import { t } from "@/i18n";
 import { useProfile } from "@/lib/profile";
 import { sfx } from "@/lib/sfx";
 import { useHydrated } from "@/lib/use-hydrated";
+import { ProfileAvatar } from "@/components/profile-avatar";
 import {
   HIDE_OPTIONS,
   MAX_PLAYERS,
@@ -194,6 +195,7 @@ export function BlindTimerGame() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         <div className="pop-sm flex min-w-0 items-center gap-2 rounded-2xl bg-cream px-3 py-1.5 sm:gap-3 sm:px-4 sm:py-2">
+          {config.mode === "solo" && <ProfileAvatar size={28} />}
           <span className="shrink-0 text-sm text-ink/70 sm:text-base">{L.turnOf}</span>
           <span className="truncate font-display text-xl font-extrabold sm:text-2xl">{players[playerIdx]}</span>
         </div>

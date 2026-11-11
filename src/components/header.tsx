@@ -6,11 +6,12 @@ import { t } from "@/i18n";
 import { useProfile } from "@/lib/profile";
 import { useHydrated } from "@/lib/use-hydrated";
 import { Gear, SoundOff, SoundOn } from "./icons";
+import { ProfileAvatar } from "./profile-avatar";
 import { ProfileDialog } from "./profile-dialog";
 
 export function Header() {
   const hydrated = useHydrated();
-  const { nickname, avatar, muted, toggleMuted } = useProfile();
+  const { nickname, muted, toggleMuted } = useProfile();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   return (
@@ -56,7 +57,7 @@ export function Header() {
             aria-haspopup="dialog"
             className="pop-sm pressable flex shrink-0 items-center gap-2 rounded-xl bg-cream p-1 text-ink sm:p-1.5 sm:pr-4"
           >
-            <span className="grid size-8 place-items-center rounded-lg bg-sun text-lg sm:text-xl">{hydrated ? avatar : "😎"}</span>
+            <ProfileAvatar size={32} />
             <span className="hidden max-w-36 truncate font-display font-bold sm:inline">
               {hydrated && nickname ? nickname : t.profile.defaultNick}
             </span>

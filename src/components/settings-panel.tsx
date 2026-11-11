@@ -2,9 +2,12 @@
 
 import { useRef, useState } from "react";
 import { t } from "@/i18n";
-import { AVATARS, useProfile } from "@/lib/profile";
+import { sanitizeAvatar } from "@/lib/avatar";
+import { useProfile } from "@/lib/profile";
 import { MOTION_MODES, TEXT_SIZES, THEMES, useSettings, type ThemeId } from "@/lib/settings";
 import { sfx } from "@/lib/sfx";
+import { AvatarPicker } from "./avatar-picker";
+import { ProfileAvatar } from "./profile-avatar";
 import { useHydrated } from "@/lib/use-hydrated";
 
 const S = t.settings;
@@ -118,7 +121,7 @@ export function SettingsPanel() {
         />
       </Section>
 
-      <Section title={S.sections.profile} icon={hydrated ? profile.avatar : "😎"}>
+      <Section id="perfil" title={S.sections.profile} icon={<ProfileAvatar size={36} />}>
         <Field label={S.nickname}>
           <input
             value={hydrated ? profile.nickname : ""}
@@ -129,27 +132,16 @@ export function SettingsPanel() {
           />
         </Field>
         <Field label={S.avatar}>
-          <div className="flex flex-wrap gap-2">
-            {AVATARS.map((a) => {
-              const on = hydrated && profile.avatar === a;
-              return (
-                <button
-                  key={a}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => {
-                    profile.setProfile(profile.nickname, a);
-                    sfx.click();
-                  }}
-                  className={`grid size-12 place-items-center rounded-xl text-2xl transition ${
-                    on ? "pop-sm scale-110 bg-sun" : "bg-field hover:scale-105"
-                  }`}
-                >
-                  {a}
-                </button>
-              );
-            })}
-          </div>
+          {hydrated ? (
+            <AvatarPicker
+              emoji={profile.avatar}
+              custom={sanitizeAvatar(profile.avatarCustom)}
+              onEmoji={(a) => profile.setProfile(profile.nickname, a)}
+              onCustom={(cfg) => profile.setAvatarCustom(cfg)}
+            />
+          ) : (
+            <div className="h-14" />
+          )}
         </Field>
         <button
           type="button"
@@ -195,9 +187,19 @@ export function SettingsPanel() {
   );
 }
 
-function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  icon,
+  children,
+}: {
+  id?: string;
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="pop flex flex-col gap-7 rounded-4xl bg-cream p-5 sm:p-8">
+    <section id={id} className="pop flex scroll-mt-28 flex-col gap-7 rounded-4xl bg-cream p-5 sm:p-8">
       <h2 className="flex items-center gap-3 font-display text-2xl font-extrabold sm:text-3xl">
         <span aria-hidden>{icon}</span>
         {title}

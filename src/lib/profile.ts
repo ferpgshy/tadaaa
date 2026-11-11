@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { AvatarConfig } from "./avatar";
 import { safeStorage } from "./safe-storage";
 
 export const AVATARS = ["😎", "🤠", "🦊", "🐸", "🐼", "🦄", "👽", "🤖", "🐙", "🦖", "🍕", "🔥"] as const;
@@ -9,6 +10,8 @@ export const AVATARS = ["😎", "🤠", "🦊", "🐸", "🐼", "🦄", "👽", 
 type ProfileState = {
   nickname: string;
   avatar: string;
+  /** Avatar criado no editor; quando existe, aparece no lugar do emoji. */
+  avatarCustom: AvatarConfig | null;
   muted: boolean;
   /** Já passou pelas boas-vindas do primeiro acesso. */
   onboarded: boolean;
@@ -22,6 +25,7 @@ type ProfileState = {
   setLastPlayers: (players: string[]) => void;
   setMuted: (muted: boolean) => void;
   setOnboarded: (onboarded: boolean) => void;
+  setAvatarCustom: (cfg: AvatarConfig | null) => void;
   clearRecords: () => void;
   resetProfile: () => void;
 };
@@ -31,6 +35,7 @@ export const useProfile = create<ProfileState>()(
     (set, get) => ({
       nickname: "",
       avatar: AVATARS[0],
+      avatarCustom: null,
       muted: false,
       onboarded: false,
       records: {},
@@ -47,8 +52,9 @@ export const useProfile = create<ProfileState>()(
       setLastPlayers: (players) => set({ lastPlayers: players }),
       setMuted: (muted) => set({ muted }),
       setOnboarded: (onboarded) => set({ onboarded }),
+      setAvatarCustom: (avatarCustom) => set({ avatarCustom }),
       clearRecords: () => set({ records: {} }),
-      resetProfile: () => set({ nickname: "", avatar: AVATARS[0], lastPlayers: [], onboarded: false }),
+      resetProfile: () => set({ nickname: "", avatar: AVATARS[0], avatarCustom: null, lastPlayers: [], onboarded: false }),
     }),
     { name: "partiko-profile", version: 1, storage: safeStorage },
   ),
