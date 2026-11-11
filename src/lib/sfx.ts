@@ -1,6 +1,7 @@
 "use client";
 
 import { useProfile } from "./profile";
+import { useSettings } from "./settings";
 
 let ctx: AudioContext | null = null;
 
@@ -15,9 +16,10 @@ function audio(): AudioContext | null {
   }
 }
 
-function tone(freq: number, dur: number, type: OscillatorType = "square", gain = 0.06, delay = 0) {
+function tone(freq: number, dur: number, type: OscillatorType = "square", baseGain = 0.06, delay = 0) {
   const ac = audio();
-  if (!ac) return;
+  const gain = baseGain * useSettings.getState().volume;
+  if (!ac || gain <= 0) return;
   const t0 = ac.currentTime + delay;
   const osc = ac.createOscillator();
   const g = ac.createGain();
@@ -31,7 +33,7 @@ function tone(freq: number, dur: number, type: OscillatorType = "square", gain =
 }
 
 export function vibrate(pattern: number | number[]) {
-  if (useProfile.getState().muted) return;
+  if (!useSettings.getState().vibration) return;
   try {
     navigator.vibrate?.(pattern);
   } catch {

@@ -23,7 +23,7 @@ export function ProfileDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
       onClick={(e) => {
         if (e.target === e.currentTarget) e.currentTarget.close();
       }}
-      className="pop m-auto w-[min(92vw,460px)] rounded-3xl bg-cream p-0 text-ink backdrop:bg-ink/60"
+      className="pop m-auto w-[min(92vw,460px)] rounded-3xl bg-cream p-0 text-ink backdrop:bg-black/60"
     >
       <form
         method="dialog"
@@ -42,7 +42,7 @@ export function ProfileDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
             onChange={(e) => setNick(e.target.value)}
             maxLength={24}
             placeholder={t.profile.nicknamePlaceholder}
-            className="pop-sm rounded-xl bg-white px-4 py-3 text-lg outline-none focus:bg-sun/20"
+            className="pop-sm rounded-xl bg-field px-4 py-3 text-lg outline-none focus:bg-sun/20"
           />
         </label>
 
@@ -58,8 +58,8 @@ export function ProfileDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                   setAvatar(a);
                   sfx.click();
                 }}
-                className={`grid aspect-square place-items-center rounded-xl border-[3px] text-2xl transition ${
-                  avatar === a ? "scale-110 border-ink bg-sun shadow-pop-sm" : "border-transparent bg-white hover:border-ink/30"
+                className={`grid aspect-square place-items-center rounded-xl border-[length:var(--line-w)] text-2xl transition ${
+                  avatar === a ? "scale-110 border-line bg-sun shadow-pop-sm" : "border-transparent bg-field hover:border-ink/30"
                 }`}
               >
                 {a}
@@ -70,7 +70,7 @@ export function ProfileDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
 
         <p className="text-sm text-ink/60">{t.profile.note}</p>
 
-        <button type="submit" className="pop pressable rounded-2xl bg-pink py-3 font-display text-xl font-extrabold text-white">
+        <button type="submit" className="pop pressable rounded-2xl bg-primary py-3 font-display text-xl font-extrabold text-on-primary">
           {t.profile.save}
         </button>
       </form>

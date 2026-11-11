@@ -1,7 +1,8 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { safeStorage } from "./safe-storage";
 
 export const AVATARS = ["😎", "🤠", "🦊", "🐸", "🐼", "🦄", "👽", "🤖", "🐙", "🦖", "🍕", "🔥"] as const;
 
@@ -17,23 +18,10 @@ type ProfileState = {
   /** Salva se for melhor (menor). "first" = primeira marca, "better" = bateu o recorde. */
   saveLowerRecord: (key: string, value: number) => "first" | "better" | false;
   setLastPlayers: (players: string[]) => void;
+  setMuted: (muted: boolean) => void;
+  clearRecords: () => void;
+  resetProfile: () => void;
 };
-
-const safeStorage = createJSONStorage(() => {
-  try {
-    const probe = "__tadaaa__";
-    localStorage.setItem(probe, "1");
-    localStorage.removeItem(probe);
-    return localStorage;
-  } catch {
-    const mem = new Map<string, string>();
-    return {
-      getItem: (k: string) => mem.get(k) ?? null,
-      setItem: (k: string, v: string) => void mem.set(k, v),
-      removeItem: (k: string) => void mem.delete(k),
-    };
-  }
-});
 
 export const useProfile = create<ProfileState>()(
   persist(
@@ -52,6 +40,9 @@ export const useProfile = create<ProfileState>()(
         return current === undefined ? "first" : "better";
       },
       setLastPlayers: (players) => set({ lastPlayers: players }),
+      setMuted: (muted) => set({ muted }),
+      clearRecords: () => set({ records: {} }),
+      resetProfile: () => set({ nickname: "", avatar: AVATARS[0], lastPlayers: [] }),
     }),
     { name: "partiko-profile", version: 1, storage: safeStorage },
   ),

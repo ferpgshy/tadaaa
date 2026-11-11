@@ -208,22 +208,22 @@ export function BlindTimerGame() {
             act(e.timeStamp);
           }
         }}
-        className={`pop relative flex min-h-[380px] touch-manipulation flex-col items-center justify-center gap-6 overflow-hidden rounded-[2rem] p-5 text-center select-none sm:p-8 lg:min-h-[480px] ${
+        className={`pop relative flex min-h-[380px] touch-manipulation flex-col items-center justify-center gap-6 overflow-hidden rounded-4xl p-5 text-center select-none sm:p-8 lg:min-h-[480px] ${
           phase === "result" ? "bg-cream" : "sunburst cursor-pointer"
         }`}
       >
-        <div className="rounded-full border-[3px] border-ink bg-cream px-5 py-1 font-display text-xl font-bold">
-          {L.targetLabel} <span className="text-pink">{formatSeconds(target * 1000)}s</span>
+        <div className="rounded-full bd bg-cream px-5 py-1 font-display text-xl font-bold">
+          {L.targetLabel} <span className="text-accent">{formatSeconds(target * 1000)}s</span>
         </div>
 
         {phase !== "result" && (
           <>
-            <div className="pop rounded-3xl bg-ink px-6 py-5 sm:px-10 sm:py-6">
+            <div className="pop rounded-3xl bg-display px-6 py-5 sm:px-10 sm:py-6">
               <span
                 key={phase}
                 ref={displayRef}
                 data-hidden={phase === "running" && hideMs === 0}
-                className="block min-w-[5ch] font-mono text-7xl font-bold text-sun tabular-nums data-[hidden=true]:animate-pulse data-[hidden=true]:text-pink sm:text-8xl xl:text-9xl"
+                className="block min-w-[5ch] font-mono text-7xl font-bold text-display-fg tabular-nums data-[hidden=true]:animate-pulse data-[hidden=true]:text-accent sm:text-8xl xl:text-9xl"
               >
                 {phase === "running" && hideMs === 0 ? L.hidden : "0,00"}
               </span>
@@ -249,11 +249,11 @@ export function BlindTimerGame() {
       {phase === "result" && lastShot && (
         <div className="flex flex-wrap justify-center gap-4">
           {turn + 1 >= totalTurns ? (
-            <BigButton color="bg-pink text-white" onClick={next}>
+            <BigButton color="bg-primary text-on-primary" onClick={next}>
               🏆 {L.seeResults}
             </BigButton>
           ) : (
-            <BigButton color="bg-pink text-white" onClick={next}>
+            <BigButton color="bg-primary text-on-primary" onClick={next}>
               {config.mode === "solo" ? `🔁 ${L.again}` : `${L.next}: ${players[(turn + 1) % players.length]} →`}
             </BigButton>
           )}
@@ -266,7 +266,7 @@ export function BlindTimerGame() {
           {shots.slice(-8).map((s, i) => {
             const e = errorMs(s.elapsedMs, s.target);
             return (
-              <span key={i} className={`rounded-full border-2 border-ink px-3 py-0.5 font-mono ${verdictColor[verdict(e)]}`}>
+              <span key={i} className={`rounded-full border-2 border-line px-3 py-0.5 font-mono ${verdictColor[verdict(e)]}`}>
                 {formatDiff(e)}
               </span>
             );
@@ -300,7 +300,7 @@ export function BlindTimerRecords() {
                 {L.target} {target}
                 {L.seconds}
               </span>
-              <span className={`rounded-full border-2 border-ink px-3 font-mono text-sm ${verdictColor[verdict(err)]}`}>
+              <span className={`rounded-full border-2 border-line px-3 font-mono text-sm ${verdictColor[verdict(err)]}`}>
                 ±{formatDiff(err).slice(1)}
               </span>
             </li>
@@ -352,7 +352,7 @@ function ResultView({
           <motion.p
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="rounded-full bg-grape px-4 py-1 font-display font-bold text-white"
+            className="rounded-full bg-primary px-4 py-1 font-display font-bold text-on-primary"
           >
             ⭐ {L.newRecord}
           </motion.p>
@@ -438,7 +438,7 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
   };
 
   return (
-    <div className="pop flex flex-col gap-7 rounded-[2rem] bg-cream p-5 sm:p-8 lg:p-10">
+    <div className="pop flex flex-col gap-7 rounded-4xl bg-cream p-5 sm:p-8 lg:p-10">
       <h2 className="font-display text-3xl font-extrabold">{L.setupTitle}</h2>
 
       <Field label={L.mode}>
@@ -500,7 +500,7 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
                     type="button"
                     aria-label={`${L.removePlayer} ${p}`}
                     onClick={() => setPlayers(list.filter((_, j) => j !== i))}
-                    className="grid size-7 place-items-center rounded-full bg-cream hover:bg-pink hover:text-white"
+                    className="grid size-7 place-items-center rounded-full bg-cream hover:bg-primary hover:text-on-primary"
                   >
                     ×
                   </button>
@@ -519,7 +519,7 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder={L.playerPlaceholder}
                 maxLength={20}
-                className="pop-sm min-w-0 flex-1 rounded-xl bg-white px-4 py-2 text-lg outline-none focus:bg-sun/20"
+                className="pop-sm min-w-0 flex-1 rounded-xl bg-field px-4 py-2 text-lg outline-none focus:bg-sun/20"
               />
               <button type="submit" className="pop-sm pressable rounded-xl bg-cyan px-5 font-display font-bold">
                 + {L.addPlayer}
@@ -539,12 +539,12 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
         </>
       )}
 
-      {error && <p className="font-bold text-pink">{error}</p>}
+      {error && <p className="font-bold text-accent">{error}</p>}
 
       <button
         type="button"
         onClick={start}
-        className="pop pressable self-start rounded-2xl bg-pink px-10 py-4 font-display text-2xl font-extrabold text-white"
+        className="pop pressable self-start rounded-2xl bg-primary px-10 py-4 font-display text-2xl font-extrabold text-on-primary"
       >
         ▶ {L.start}
       </button>
@@ -580,7 +580,7 @@ function Choice({
         onClick();
         sfx.click();
       }}
-      className={`pop-sm pressable rounded-2xl ${active ? "bg-sun" : "bg-white"} ${className}`}
+      className={`pop-sm pressable rounded-2xl ${active ? "bg-sun" : "bg-field"} ${className}`}
     >
       {children}
     </button>
@@ -605,7 +605,7 @@ function Podium({
   const heights = ["h-48", "h-36", "h-28"];
 
   return (
-    <div className="pop flex flex-col items-center gap-10 rounded-[2rem] bg-cream p-6 sm:p-10">
+    <div className="pop flex flex-col items-center gap-10 rounded-4xl bg-cream p-6 sm:p-10">
       <h2 className="font-display text-5xl font-extrabold">🏆 {L.podiumTitle}</h2>
 
       <div className="flex items-end justify-center gap-4">
@@ -635,7 +635,7 @@ function Podium({
 
       <table className="w-full max-w-xl text-left">
         <thead>
-          <tr className="border-b-[3px] border-ink font-display">
+          <tr className="bd-b font-display">
             <th className="py-2">#</th>
             <th>{L.players}</th>
             <th className="text-right">{L.avgError}</th>
@@ -655,10 +655,10 @@ function Podium({
       </table>
 
       <div className="flex flex-wrap justify-center gap-4">
-        <BigButton color="bg-pink text-white" onClick={onAgain}>
+        <BigButton color="bg-primary text-on-primary" onClick={onAgain}>
           🔁 {L.playAgain}
         </BigButton>
-        <BigButton color="bg-white" onClick={onSetup}>
+        <BigButton color="bg-cream" onClick={onSetup}>
           ⚙️ {L.changeSetup}
         </BigButton>
       </div>

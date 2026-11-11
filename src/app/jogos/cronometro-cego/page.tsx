@@ -28,7 +28,7 @@ export default function BlindTimerPage() {
           <ol className="flex flex-col gap-3">
             {L.steps.map((s, i) => (
               <li key={s} className="flex gap-3">
-                <span className="grid size-7 shrink-0 place-items-center rounded-full border-2 border-ink bg-sun font-display text-sm font-extrabold">
+                <span className="grid size-7 shrink-0 place-items-center rounded-full border-2 border-line bg-sun font-display text-sm font-extrabold">
                   {i + 1}
                 </span>
                 <span className="text-ink/80">{s}</span>

@@ -1,68 +1,352 @@
 @import "tailwindcss";
 
-@theme {
-  --color-ink: #1b1035;
-  --color-paper: #fff6df;
-  --color-cream: #fffbef;
-  --color-sun: #ffc93c;
-  --color-pink: #ff3d7f;
-  --color-cyan: #19c3d6;
-  --color-grape: #7b3fe4;
-  --color-lime: #8fd14f;
-  --color-tomato: #ff6b3d;
+/*
+ * Temas: cada tema define as mesmas variáveis (tokens). O Tailwind lê os tokens
+ * em tempo de execução (@theme inline), então trocar data-theme no <html> troca o
+ * visual inteiro sem recarregar. Um elemento com data-theme também vira "prévia".
+ *
+ * Regra de contraste: as cores de preenchimento (sun, pink, cyan...) sempre
+ * combinam com o texto --ink do mesmo tema. Botão principal usa primary/on-primary.
+ */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-line: var(--line);
+  --color-paper: var(--paper);
+  --color-cream: var(--surface);
+  --color-field: var(--field);
+  --color-sun: var(--sun);
+  --color-pink: var(--pink);
+  --color-cyan: var(--cyan);
+  --color-grape: var(--grape);
+  --color-lime: var(--lime);
+  --color-tomato: var(--tomato);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-accent: var(--accent);
+  --color-display: var(--display);
+  --color-display-fg: var(--display-fg);
+  --color-header: var(--header);
+  --color-header-fg: var(--header-fg);
+  --color-strip: var(--strip);
 
-  --font-display: var(--font-bricolage), ui-sans-serif, system-ui;
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui;
+  --font-display: var(--theme-display), ui-sans-serif, system-ui;
+  --font-sans: var(--theme-sans), ui-sans-serif, system-ui;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
-  --shadow-pop: 6px 6px 0 0 var(--color-ink);
-  --shadow-pop-sm: 3px 3px 0 0 var(--color-ink);
-  --shadow-pop-lg: 10px 10px 0 0 var(--color-ink);
+  --shadow-pop: var(--sh);
+  --shadow-pop-sm: var(--sh-sm);
+  --shadow-pop-lg: var(--sh-lg);
 }
 
-html {
+/* ---------- Auditório (padrão) ---------- */
+:root,
+[data-theme="auditorio"] {
+  --paper: #fff6df;
+  --surface: #fffbef;
+  --field: #ffffff;
+  --ink: #1b1035;
+  --line: #1b1035;
+  --line-w: 3px;
+  --sun: #ffc93c;
+  --sun-2: #ffd766;
+  --pink: #ff3d7f;
+  --cyan: #19c3d6;
+  --grape: #a77bf3;
+  --lime: #8fd14f;
+  --tomato: #ff6b3d;
+  --primary: #ff3d7f;
+  --on-primary: #ffffff;
+  --accent: #e8226a;
+  --display: #1b1035;
+  --display-fg: #ffc93c;
+  --header: #7b3fe4;
+  --header-fg: #fffbef;
+  --strip: #1b1035;
+  --bulb: #fff7c2;
+  --focus: #19c3d6;
+  --dots: color-mix(in oklab, #1b1035 9%, transparent);
+  --sh: 6px 6px 0 0 var(--line);
+  --sh-sm: 3px 3px 0 0 var(--line);
+  --sh-lg: 10px 10px 0 0 var(--line);
+  --sh-hover: 8px 8px 0 0 var(--line);
+  --sh-press: 1px 1px 0 0 var(--line);
+  --lift: -2px;
+  --press: 4px;
+  --theme-display: var(--font-bricolage);
+  --theme-sans: var(--font-geist-sans);
   color-scheme: light;
 }
 
+/* ---------- Neon ---------- */
+[data-theme="neon"] {
+  --paper: #07041a;
+  --surface: #110a2b;
+  --field: #1a1140;
+  --ink: #f3f0ff;
+  --line: #2de2e6;
+  --line-w: 2px;
+  --sun: #3b1680;
+  --sun-2: #4c1d95;
+  --pink: #8a1350;
+  --cyan: #0e4f63;
+  --grape: #33105e;
+  --lime: #14532d;
+  --tomato: #7c2d12;
+  --primary: #ff2e97;
+  --on-primary: #12001f;
+  --accent: #ff4fa8;
+  --display: #000000;
+  --display-fg: #39ff14;
+  --header: #0b0624;
+  --header-fg: #2de2e6;
+  --strip: #000000;
+  --bulb: #ff2e97;
+  --focus: #39ff14;
+  --dots: rgb(45 226 230 / 0.12);
+  --sh: 0 0 0 1px rgb(45 226 230 / 0.25), 0 0 18px rgb(45 226 230 / 0.35);
+  --sh-sm: 0 0 10px rgb(45 226 230 / 0.35);
+  --sh-lg: 0 0 32px rgb(255 46 151 / 0.4), 0 0 0 1px rgb(255 46 151 / 0.4);
+  --sh-hover: 0 0 26px rgb(45 226 230 / 0.7);
+  --sh-press: 0 0 6px rgb(45 226 230 / 0.6);
+  --lift: -1px;
+  --press: 1px;
+  --theme-display: var(--font-orbitron);
+  --theme-sans: var(--font-geist-sans);
+  color-scheme: dark;
+}
+
+/* ---------- Moderno ---------- */
+[data-theme="moderno"] {
+  --paper: #f5f6fa;
+  --surface: #ffffff;
+  --field: #f1f3f8;
+  --ink: #111827;
+  --line: rgb(17 24 39 / 0.1);
+  --line-w: 1px;
+  --sun: #c7d2fe;
+  --sun-2: #eef2ff;
+  --pink: #fce7f3;
+  --cyan: #cffafe;
+  --grape: #ede9fe;
+  --lime: #dcfce7;
+  --tomato: #ffedd5;
+  --primary: #4f46e5;
+  --on-primary: #ffffff;
+  --accent: #4f46e5;
+  --display: #111827;
+  --display-fg: #a5b4fc;
+  --header: rgb(255 255 255 / 0.85);
+  --header-fg: #111827;
+  --strip: transparent;
+  --bulb: transparent;
+  --focus: #6366f1;
+  --dots: transparent;
+  --sh: 0 1px 2px rgb(0 0 0 / 0.04), 0 10px 28px -14px rgb(17 24 39 / 0.2);
+  --sh-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --sh-lg: 0 30px 60px -30px rgb(17 24 39 / 0.35);
+  --sh-hover: 0 14px 34px -14px rgb(17 24 39 / 0.3);
+  --sh-press: 0 1px 2px rgb(0 0 0 / 0.08);
+  --lift: -2px;
+  --press: 0px;
+  --theme-display: var(--font-geist-sans);
+  --theme-sans: var(--font-geist-sans);
+  color-scheme: light;
+}
+
+/* ---------- Fliperama 8-bit ---------- */
+[data-theme="fliperama"] {
+  --paper: #9bbc0f;
+  --surface: #c4dc5a;
+  --field: #d6e88c;
+  --ink: #0f380f;
+  --line: #0f380f;
+  --line-w: 4px;
+  --sun: #b7d23a;
+  --sun-2: #a6c22a;
+  --pink: #8bac0f;
+  --cyan: #a9c94a;
+  --grape: #7f9e12;
+  --lime: #c9e06a;
+  --tomato: #94b52a;
+  --primary: #306230;
+  --on-primary: #e0f8d0;
+  --accent: #306230;
+  --display: #0f380f;
+  --display-fg: #9bbc0f;
+  --header: #306230;
+  --header-fg: #e0f8d0;
+  --strip: #0f380f;
+  --bulb: #9bbc0f;
+  --focus: #0f380f;
+  --dots: rgb(15 56 15 / 0.14);
+  --sh: 5px 5px 0 0 var(--line);
+  --sh-sm: 3px 3px 0 0 var(--line);
+  --sh-lg: 8px 8px 0 0 var(--line);
+  --sh-hover: 7px 7px 0 0 var(--line);
+  --sh-press: 0 0 0 0 var(--line);
+  --lift: -2px;
+  --press: 5px;
+  --theme-display: var(--font-silkscreen);
+  --theme-sans: var(--font-geist-mono);
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-4xl: 0;
+  color-scheme: light;
+}
+
+/* ---------- Doce (pastel) ---------- */
+[data-theme="doce"] {
+  --paper: #fff0f6;
+  --surface: #ffffff;
+  --field: #fff7fb;
+  --ink: #4a2b4f;
+  --line: #e7a9cc;
+  --line-w: 3px;
+  --sun: #ffe3a3;
+  --sun-2: #fff0c7;
+  --pink: #ffc2dc;
+  --cyan: #bdeefa;
+  --grape: #e3d1ff;
+  --lime: #d4f5c4;
+  --tomato: #ffd2bf;
+  --primary: #ff7ab6;
+  --on-primary: #3d0f2a;
+  --accent: #d63f86;
+  --display: #4a2b4f;
+  --display-fg: #ffc2dc;
+  --header: #ffc2dc;
+  --header-fg: #4a2b4f;
+  --strip: #ff9fcb;
+  --bulb: #ffffff;
+  --focus: #b07cff;
+  --dots: rgb(231 169 204 / 0.35);
+  --sh: 5px 5px 0 0 var(--line);
+  --sh-sm: 3px 3px 0 0 var(--line);
+  --sh-lg: 9px 9px 0 0 var(--line);
+  --sh-hover: 7px 7px 0 0 var(--line);
+  --sh-press: 1px 1px 0 0 var(--line);
+  --lift: -2px;
+  --press: 3px;
+  --theme-display: var(--font-fredoka);
+  --theme-sans: var(--font-fredoka);
+  color-scheme: light;
+}
+
+/* ---------- Noite ---------- */
+[data-theme="noite"] {
+  --paper: #0b0d12;
+  --surface: #141821;
+  --field: #1b2130;
+  --ink: #e7e9ef;
+  --line: rgb(255 255 255 / 0.1);
+  --line-w: 1px;
+  --sun: #151922;
+  --sun-2: #3a2e0e;
+  --pink: #3a1426;
+  --cyan: #0f2c36;
+  --grape: #241a40;
+  --lime: #142c1c;
+  --tomato: #36190f;
+  --primary: #f5b301;
+  --on-primary: #1a1300;
+  --accent: #f5b301;
+  --display: #000000;
+  --display-fg: #f5b301;
+  --header: rgb(15 18 24 / 0.85);
+  --header-fg: #e7e9ef;
+  --strip: transparent;
+  --bulb: transparent;
+  --focus: #f5b301;
+  --dots: transparent;
+  --sh: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 14px 32px -14px rgb(0 0 0 / 0.7);
+  --sh-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --sh-lg: 0 30px 60px -24px rgb(0 0 0 / 0.75);
+  --sh-hover: 0 18px 40px -14px rgb(0 0 0 / 0.8);
+  --sh-press: 0 1px 2px rgb(0 0 0 / 0.5);
+  --lift: -2px;
+  --press: 0px;
+  --theme-display: var(--font-geist-sans);
+  --theme-sans: var(--font-geist-sans);
+  color-scheme: dark;
+}
+
+/* Cantos padrão (o Fliperama zera); necessário para prévias dentro de outro tema */
+[data-theme]:not([data-theme="fliperama"]) {
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+}
+
+/* ---------- Tamanho do texto ---------- */
+html[data-text="p"] {
+  font-size: 87.5%;
+}
+html[data-text="g"] {
+  font-size: 112.5%;
+}
+html[data-text="gg"] {
+  font-size: 125%;
+}
+
 body {
-  background-color: var(--color-paper);
-  background-image: radial-gradient(color-mix(in oklab, var(--color-ink) 9%, transparent) 1.2px, transparent 1.2px);
+  background-color: var(--paper);
+  background-image: radial-gradient(var(--dots) 1.2px, transparent 1.2px);
   background-size: 22px 22px;
-  color: var(--color-ink);
+  color: var(--ink);
+}
+
+html[data-decor="off"] body {
+  background-image: none;
 }
 
 @layer components {
+  .bd {
+    border: var(--line-w) solid var(--line);
+  }
+  .bd-b {
+    border-bottom: var(--line-w) solid var(--line);
+  }
   .pop {
-    border: 3px solid var(--color-ink);
-    box-shadow: var(--shadow-pop);
+    border: var(--line-w) solid var(--line);
+    box-shadow: var(--sh);
   }
   .pop-sm {
-    border: 3px solid var(--color-ink);
-    box-shadow: var(--shadow-pop-sm);
+    border: var(--line-w) solid var(--line);
+    box-shadow: var(--sh-sm);
   }
   .pressable {
     transition:
       transform 90ms ease,
-      box-shadow 90ms ease;
+      box-shadow 120ms ease;
     cursor: pointer;
   }
   .pressable:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 8px 8px 0 0 var(--color-ink);
+    transform: translate(var(--lift), var(--lift));
+    box-shadow: var(--sh-hover);
   }
   .pressable:active {
-    transform: translate(4px, 4px);
-    box-shadow: 1px 1px 0 0 var(--color-ink);
+    transform: translate(var(--press), var(--press));
+    box-shadow: var(--sh-press);
   }
-  .pressable:focus-visible {
-    outline: 4px solid var(--color-cyan);
+  .pressable:focus-visible,
+  .focus-ring:focus-visible {
+    outline: 4px solid var(--focus);
     outline-offset: 3px;
   }
   .sunburst {
+    background-color: var(--sun);
     background-image: repeating-conic-gradient(
       from 0deg at 50% 115%,
-      #ffd766 0deg 9deg,
-      var(--color-sun) 9deg 18deg
+      var(--sun-2) 0deg 9deg,
+      var(--sun) 9deg 18deg
     );
   }
   .sunburst-soft {
@@ -80,7 +364,7 @@ body {
     );
   }
   .marquee-lights {
-    background-image: radial-gradient(circle, #fff7c2 0 4px, transparent 5px);
+    background-image: radial-gradient(circle, var(--bulb) 0 4px, transparent 5px);
     background-size: 26px 26px;
     background-position: 0 50%;
     background-repeat: repeat-x;
@@ -88,6 +372,38 @@ body {
   }
 }
 
+/* Ajustes de personalidade por tema */
+[data-theme="moderno"] .sunburst,
+[data-theme="noite"] .sunburst {
+  background-image: radial-gradient(120% 120% at 50% 0%, var(--sun-2), var(--sun));
+}
+[data-theme="moderno"] .marquee-lights,
+[data-theme="noite"] .marquee-lights {
+  display: none;
+}
+[data-theme="moderno"] .header-bar,
+[data-theme="noite"] .header-bar {
+  backdrop-filter: blur(12px);
+}
+[data-theme="neon"] :is(h1, h2) {
+  text-shadow:
+    0 0 10px rgb(45 226 230 / 0.55),
+    0 0 28px rgb(255 46 151 / 0.35);
+}
+[data-theme="neon"] .sunburst {
+  background-image:
+    radial-gradient(60% 80% at 50% 110%, rgb(255 46 151 / 0.45), transparent 70%),
+    repeating-conic-gradient(from 0deg at 50% 115%, var(--sun-2) 0deg 9deg, var(--sun) 9deg 18deg);
+}
+[data-theme="fliperama"] :is(h1, h2, h3) {
+  letter-spacing: 0.02em;
+  line-height: 1.2 !important;
+}
+html[data-decor="off"] .sunburst {
+  background-image: none;
+}
+
+/* ---------- Animações ---------- */
 @keyframes bulbs {
   to {
     background-position: 13px 50%;
@@ -95,7 +411,15 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .marquee-lights {
+  html:not([data-motion="full"]) .marquee-lights {
     animation: none;
   }
+}
+
+html[data-motion="off"] *,
+html[data-motion="off"] *::before,
+html[data-motion="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
 }
