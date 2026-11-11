@@ -155,15 +155,25 @@ export function useParty(code: string, me: Me | null) {
   }, [code, meId, applyAsHost]);
 
   // Nome/avatar mudaram: atualiza a presença sem reconectar.
+  // Compara pelo conteúdo (texto): o objeto do avatar é recriado a cada render e, comparado
+  // por referência, fazia a presença ser reenviada sem parar (e o servidor passava a descartar).
   const meName = me?.name;
-  const meAvatar = me?.avatar;
+  const meAvatarKey = JSON.stringify(me?.avatar ?? null);
+  const lastSent = useRef("");
   useEffect(() => {
     const ch = channelRef.current;
     if (!ch || status !== "online" || !meName) return;
+    const sig = `${meName}|${meAvatarKey}`;
+    if (!lastSent.current) {
+      lastSent.current = sig; // o primeiro envio já foi feito ao entrar na sala
+      return;
+    }
+    if (sig === lastSent.current) return;
+    lastSent.current = sig;
     const current = ch.presenceState<Omit<PartyPlayer, "id">>()[meId ?? ""]?.[0];
     if (!current) return;
-    void ch.track({ ...current, name: meName, avatar: meAvatar ?? null });
-  }, [meName, meAvatar, meId, status]);
+    void ch.track({ ...current, name: meName, avatar: JSON.parse(meAvatarKey) });
+  }, [meName, meAvatarKey, meId, status]);
 
   return { status, players, state, hostId, isHost, dispatch };
 }

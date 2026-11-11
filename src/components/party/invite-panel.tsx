@@ -13,7 +13,8 @@ export function InvitePanel({ code }: { code: string }) {
   const [url, setUrl] = useState("");
   const [qr, setQr] = useState("");
   const [copied, setCopied] = useState(false);
-  const [discordOk, setDiscordOk] = useState(false);
+  // Discord: "copied" = convite copiado; "manual" = navegador bloqueou a cópia, mostra o texto.
+  const [discord, setDiscord] = useState<"idle" | "copied" | "manual">("idle");
 
   useEffect(() => {
     const link = `${location.origin}/sala/${code}`;
@@ -42,10 +43,15 @@ export function InvitePanel({ code }: { code: string }) {
           <p className="pop-sm w-fit rounded-2xl bg-sun px-5 py-2 font-mono text-4xl font-bold tracking-[0.25em]" aria-label={`Código ${code.split("").join(" ")}`}>
             {code}
           </p>
-          <p className="w-full truncate rounded-xl bg-field px-3 py-2 text-center font-mono text-sm" title={url}>
-            {url || "…"}
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
+          {/* Link com o botão de copiar ao lado */}
+          <div className="flex w-full items-stretch gap-2">
+            <input
+              readOnly
+              value={url || "…"}
+              onFocus={(e) => e.currentTarget.select()}
+              aria-label={P.copyLink}
+              className="min-w-0 flex-1 truncate rounded-xl bg-field px-3 py-2 font-mono text-sm outline-none focus:bg-sun/20"
+            />
             <button
               type="button"
               onClick={async () => {
@@ -55,13 +61,17 @@ export function InvitePanel({ code }: { code: string }) {
                   sfx.good();
                   setTimeout(() => setCopied(false), 1800);
                 } catch {
-                  /* sem permissão de área de transferência */
+                  /* sem permissão: o campo ao lado fica selecionável para copiar na mão */
                 }
               }}
-              className="pop-sm pressable rounded-xl bg-primary px-4 py-2 font-display font-bold text-on-primary"
+              aria-label={P.copyLink}
+              title={P.copyLink}
+              className={`pop-sm pressable shrink-0 rounded-xl px-3 font-display text-sm font-bold whitespace-nowrap ${copied ? "bg-lime" : "bg-primary text-on-primary"}`}
             >
-              {copied ? `✅ ${P.copied}` : `🔗 ${P.copyLink}`}
+              {copied ? `✅ ${P.copied}` : `📋 ${P.copy}`}
             </button>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
             <a
               href={`https://wa.me/?text=${encodeURIComponent(text)}`}
               target="_blank"
@@ -73,16 +83,15 @@ export function InvitePanel({ code }: { code: string }) {
             <button
               type="button"
               onClick={async () => {
-                // O Discord não aceita mensagem pronta por link: copiamos o convite e abrimos o app.
+                // O Discord não aceita mensagem pronta por link: copiamos o convite e mostramos
+                // um aviso com o botão para abrir o Discord e colar no canal.
                 try {
                   await navigator.clipboard.writeText(P.discordText(code, url));
-                  setDiscordOk(true);
+                  setDiscord("copied");
                   sfx.good();
-                  setTimeout(() => setDiscordOk(false), 4000);
                 } catch {
-                  /* sem permissão de área de transferência */
+                  setDiscord("manual");
                 }
-                window.open("https://discord.com/app", "_blank", "noopener");
               }}
               className="pop-sm pressable rounded-xl px-4 py-2 font-display font-bold text-white"
               style={{ background: "#5865F2" }}
@@ -99,10 +108,31 @@ export function InvitePanel({ code }: { code: string }) {
               </button>
             )}
           </div>
-          {discordOk && (
-            <p className="text-center text-sm font-bold text-ink/80" role="status">
-              ✅ {P.discordCopied}
-            </p>
+          {discord !== "idle" && (
+            <div className="pop-sm flex w-full flex-col gap-2 rounded-2xl p-3 text-white" style={{ background: "#5865F2" }} role="status">
+              <p className="font-display font-bold">{discord === "copied" ? `✅ ${P.discordCopied}` : P.discordManual}</p>
+              <textarea
+                readOnly
+                value={P.discordText(code, url)}
+                onFocus={(e) => e.currentTarget.select()}
+                rows={2}
+                className="w-full resize-none rounded-lg bg-white/15 p-2 font-mono text-xs text-white outline-none"
+              />
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href="https://discord.com/app"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-lg bg-white px-3 py-1.5 font-display text-sm font-bold"
+                  style={{ color: "#5865F2" }}
+                >
+                  {P.discordOpen} ↗
+                </a>
+                <button type="button" onClick={() => setDiscord("idle")} className="rounded-lg px-3 py-1.5 text-sm font-bold text-white/90 hover:bg-white/15">
+                  {t.profile.close}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
