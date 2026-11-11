@@ -1,4 +1,4 @@
-# Partiko
+# Tadaaa
 
 Jogos de festa e desafios que estão em alta, direto no navegador. Sem login: perfil, recordes e preferências ficam salvos no próprio aparelho.
 

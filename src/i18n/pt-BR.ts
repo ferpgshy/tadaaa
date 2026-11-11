@@ -1,7 +1,7 @@
 export const ptBR = {
   locale: "pt-BR",
   brand: {
-    name: "Partiko",
+    name: "Tadaaa",
     tagline: "Os jogos que bombam nos vídeos, agora na sua tela.",
   },
   header: {
@@ -177,7 +177,7 @@ export const ptBR = {
     total: "Total",
     avgError: "Erro médio",
     shareText: (time: string, target: string, url: string) =>
-      `Parei o Cronômetro Cego em ${time}s (alvo ${target}s) no Partiko. Bate aí: ${url}`,
+      `Parei o Cronômetro Cego em ${time}s (alvo ${target}s) no Tadaaa. Bate aí: ${url}`,
     verdicts: {
       perfect: "PERFEITO!!!",
       surgical: "Cirúrgico",

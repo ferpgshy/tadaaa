@@ -21,7 +21,7 @@ type ProfileState = {
 
 const safeStorage = createJSONStorage(() => {
   try {
-    const probe = "__partiko__";
+    const probe = "__tadaaa__";
     localStorage.setItem(probe, "1");
     localStorage.removeItem(probe);
     return localStorage;
