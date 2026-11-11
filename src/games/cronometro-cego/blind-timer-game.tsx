@@ -7,6 +7,7 @@ import { useProfile } from "@/lib/profile";
 import { sfx } from "@/lib/sfx";
 import { useHydrated } from "@/lib/use-hydrated";
 import { AvatarImage } from "@/components/avatar-image";
+import { useCreateRoom } from "@/components/party/party-entry";
 import type { AvatarMood } from "@/lib/avatar";
 import type { AvatarImages } from "@/lib/profile";
 import {
@@ -474,6 +475,7 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [salts, setSalts] = useState<Record<string, number>>({});
+  const createRoom = useCreateRoom();
   const [lib, setLib] = useState<typeof import("@/lib/avatar-render") | null>(null);
   // Seletores separados: um objeto novo a cada leitura faria o zustand re-renderizar sem parar.
   const profileImages = useProfile((p) => p.avatarImages);
@@ -533,17 +535,18 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
       <h2 className="font-display text-3xl font-extrabold">{L.setupTitle}</h2>
 
       <Field label={L.mode}>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {(
             [
               ["solo", "🧍", L.modeSolo, L.modeSoloHint],
               ["group", "🎉", L.modeGroup, L.modeGroupHint],
+              ["online", "🌐", t.party.online, t.party.onlineHint],
             ] as const
           ).map(([value, icon, label, hint]) => (
             <Choice
               key={value}
               active={mode === value}
-              onClick={() => setMode(value)}
+              onClick={() => (value === "online" ? createRoom() : setMode(value))}
               className="flex min-w-0 flex-col items-start gap-2 p-4 text-left sm:flex-row sm:items-center sm:gap-4"
             >
               <span className="text-3xl sm:text-4xl">{icon}</span>

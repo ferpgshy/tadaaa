@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GameCard } from "@/components/game-card";
+import { PartyEntry } from "@/components/party/party-entry";
 import { SoonGrid } from "@/components/soon-grid";
 import { catalog, gameHref } from "@/games/catalog";
 import { t } from "@/i18n";
@@ -47,6 +48,10 @@ export default function Home() {
             <GameCard key={g.slug} game={g} big />
           ))}
         </div>
+      </section>
+
+      <section id="sala" className="scroll-mt-28">
+        <PartyEntry />
       </section>
 
       <section id="em-breve" className="scroll-mt-28">
