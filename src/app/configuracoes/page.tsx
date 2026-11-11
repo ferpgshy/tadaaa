@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function SettingsPage() {
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-6 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-8 px-4 py-6 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-3">
         <Link href="/" className="w-fit font-display font-bold text-ink/70 hover:text-ink">
           ← {t.blindTimer.back}

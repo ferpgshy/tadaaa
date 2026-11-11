@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { GameCard } from "@/components/game-card";
-import { catalog, gameHref, type GameCategory } from "@/games/catalog";
+import { SoonGrid } from "@/components/soon-grid";
+import { catalog, gameHref } from "@/games/catalog";
 import { t } from "@/i18n";
 
 export default function Home() {
   const live = catalog.filter((g) => g.live);
   const soon = catalog.filter((g) => !g.live);
-  const categories = Object.keys(t.categories) as GameCategory[];
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-14 px-4 py-8 sm:px-6 sm:py-10 lg:gap-20">
+    <div className="mx-auto flex w-full max-w-[2400px] flex-col gap-14 px-4 py-8 sm:px-6 sm:py-10 lg:gap-20 lg:px-10 2xl:px-16">
       <section className="sunburst relative overflow-hidden rounded-4xl bd px-5 py-9 text-center shadow-pop-lg sm:px-12 sm:py-20 lg:py-24">
         <p className="mx-auto mb-5 w-fit -rotate-1 rounded-full bd bg-cream px-4 py-1 font-display text-xs font-bold sm:text-sm">
           {t.home.heroKicker}
@@ -51,22 +51,7 @@ export default function Home() {
 
       <section id="em-breve" className="scroll-mt-28">
         <h2 className="mb-6 font-display text-3xl font-extrabold sm:text-4xl">{t.home.soonTitle}</h2>
-        <div className="flex flex-col gap-10">
-          {categories.map((cat) => {
-            const games = soon.filter((g) => g.category === cat);
-            if (!games.length) return null;
-            return (
-              <div key={cat}>
-                <h3 className="mb-4 font-display text-xl font-bold text-ink/70">{t.categories[cat]}</h3>
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {games.map((g) => (
-                    <GameCard key={g.slug} game={g} />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <SoonGrid games={soon} />
       </section>
     </div>
   );

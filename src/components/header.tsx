@@ -17,7 +17,7 @@ export function Header() {
   return (
     <header className="header-bar bd-b sticky top-0 z-30 bg-header text-header-fg">
       <div className="marquee-lights h-3 bg-strip" aria-hidden />
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-[2400px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10 2xl:px-16">
         <Link
           href="/"
           className="pop-sm pressable -rotate-2 rounded-xl bg-sun px-3 py-1 font-display text-xl sm:px-4 sm:text-2xl font-extrabold tracking-tight text-ink"

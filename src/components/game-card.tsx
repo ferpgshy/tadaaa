@@ -59,8 +59,9 @@ export function GameCard({ game, big = false }: { game: GameEntry; big?: boolean
       <div className="flex flex-1 flex-col gap-1.5 p-5">
         <h3 className="font-display text-xl leading-tight font-extrabold">{info.name}</h3>
         <p className="text-sm text-ink/70">{info.tagline}</p>
-        <p className="mt-auto pt-2 text-xs font-semibold text-ink/70">
-          👥 {t.home.players}: {info.players}
+        <p className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-2 text-xs font-semibold text-ink/70">
+          <span>👥 {info.players}</span>
+          <span className="rounded-full bg-field px-2 py-0.5">{t.categories[game.category]}</span>
         </p>
       </div>
     </div>

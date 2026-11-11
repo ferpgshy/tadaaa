@@ -189,6 +189,7 @@ export const ptBR = {
     comingCount: (n: number) => `+${n} jogos chegando`,
     liveTitle: "No ar",
     soonTitle: "Em breve no palco",
+    allCategories: "Todos",
     soonBadge: "Em breve",
     liveBadge: "No ar",
     players: "Jogadores",

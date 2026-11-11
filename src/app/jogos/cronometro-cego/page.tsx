@@ -37,7 +37,7 @@ function HowTo() {
 
 export default function BlindTimerPage() {
   return (
-    <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:gap-10">
+    <div className="mx-auto grid w-full max-w-[2400px] gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:gap-10 lg:px-10 2xl:grid-cols-[minmax(0,400px)_minmax(0,1fr)] 2xl:px-16">
       <aside className="flex flex-col gap-4 lg:sticky lg:top-28 lg:row-span-2 lg:gap-5 lg:self-start">
         <Link href="/" className="w-fit font-display font-bold text-ink/70 hover:text-ink">
           ← {L.back}
