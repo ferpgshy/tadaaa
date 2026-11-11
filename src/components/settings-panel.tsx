@@ -2,13 +2,21 @@
 
 import { useRef, useState } from "react";
 import { t } from "@/i18n";
-import { sanitizeAvatar } from "@/lib/avatar";
+import { AVATAR_STYLES, sanitizeAvatar, type AvatarConfig } from "@/lib/avatar";
 import { useProfile } from "@/lib/profile";
 import { MOTION_MODES, TEXT_SIZES, THEMES, useSettings, type ThemeId } from "@/lib/settings";
 import { sfx } from "@/lib/sfx";
-import { AvatarPicker } from "./avatar-picker";
+import dynamic from "next/dynamic";
 import { ProfileAvatar } from "./profile-avatar";
+import { ThemeCard } from "./theme-card";
 import { useHydrated } from "@/lib/use-hydrated";
+
+// O editor (com todas as ilustrações) só é baixado depois que a página aparece.
+const AvatarEditor = dynamic(() => import("./avatar-editor").then((m) => m.AvatarEditor), {
+  ssr: false,
+  loading: () => <div className="h-72 animate-pulse rounded-3xl bg-field" />,
+});
+const loadAvatarLib = () => import("@/lib/avatar-render");
 
 const S = t.settings;
 
@@ -125,23 +133,14 @@ export function SettingsPanel() {
         <Field label={S.nickname}>
           <input
             value={hydrated ? profile.nickname : ""}
-            onChange={(e) => profile.setProfile(e.target.value, profile.avatar)}
+            onChange={(e) => profile.setNickname(e.target.value)}
             maxLength={24}
             placeholder={t.profile.nicknamePlaceholder}
             className="pop-sm w-full max-w-md rounded-xl bg-field px-4 py-3 text-lg outline-none focus:bg-sun/20"
           />
         </Field>
         <Field label={S.avatar}>
-          {hydrated ? (
-            <AvatarPicker
-              emoji={profile.avatar}
-              custom={sanitizeAvatar(profile.avatarCustom)}
-              onEmoji={(a) => profile.setProfile(profile.nickname, a)}
-              onCustom={(cfg) => profile.setAvatarCustom(cfg)}
-            />
-          ) : (
-            <div className="h-14" />
-          )}
+          {hydrated ? <ProfileAvatarField /> : <div className="h-14" />}
         </Field>
         <button
           type="button"
@@ -183,6 +182,61 @@ export function SettingsPanel() {
           />
         </div>
       </Section>
+
+      <Section id="creditos" title={t.avatar.credits} icon="🎨">
+        <p className="text-ink/75">
+          {t.avatar.creditsText}{" "}
+          <a href="https://www.dicebear.com" target="_blank" rel="noreferrer" className="font-bold underline underline-offset-2">
+            dicebear.com
+          </a>
+        </p>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {AVATAR_STYLES.map((s) => (
+            <li key={s.id} className="text-sm text-ink/80">
+              <span className="font-bold">{s.label}</span> ·{" "}
+              <a href={s.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                {s.author}
+              </a>{" "}
+              · {s.license}
+            </li>
+          ))}
+        </ul>
+      </Section>
+    </div>
+  );
+}
+
+/** Editor do avatar do perfil: cada mudança já salva a imagem (todas as expressões). */
+function ProfileAvatarField() {
+  const avatar = useProfile((p) => p.avatar);
+  const setAvatar = useProfile((p) => p.setAvatar);
+  const cfg = sanitizeAvatar(avatar);
+  // Guarda a escolha na hora e gera as imagens (todas as expressões) logo em seguida.
+  const save = (next: AvatarConfig) => {
+    setAvatar(next, useProfile.getState().avatarImages);
+    void loadAvatarLib().then((m) => {
+      if (useProfile.getState().avatar === next) setAvatar(next, m.renderAllMoods(next));
+    });
+  };
+
+  if (!cfg) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          void loadAvatarLib().then((m) => save(m.randomAvatarConfig("avataaars")));
+          sfx.good();
+        }}
+        className="pop pressable flex w-fit items-center gap-3 rounded-2xl bg-primary px-6 py-4 font-display text-xl font-extrabold text-on-primary"
+      >
+        🎨 {t.avatar.create}
+      </button>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      <AvatarEditor value={cfg} onChange={save} />
+      <p className="text-sm font-semibold text-ink/70">✅ {t.avatar.saved}</p>
     </div>
   );
 }
@@ -321,67 +375,6 @@ function DangerButton({ label, hint, onConfirm }: { label: string; hint: string;
         {state === "confirm" ? `⚠️ ${S.confirm}` : state === "done" ? `✅ ${S.done}` : label}
       </span>
       <span className="text-sm text-ink/70">{hint}</span>
-    </button>
-  );
-}
-
-export function ThemeCard({
-  id,
-  active,
-  onPick,
-  compact = false,
-}: {
-  id: ThemeId;
-  active: boolean;
-  onPick: () => void;
-  /** Versão menor, usada nas boas-vindas. */
-  compact?: boolean;
-}) {
-  const info = S.themes[id];
-  return (
-    <button
-      type="button"
-      data-theme={id}
-      aria-pressed={active}
-      onClick={onPick}
-      className={`pop pressable flex flex-col overflow-hidden rounded-3xl bg-paper text-left text-ink ${
-        active ? "outline-4 outline-offset-4 outline-[var(--focus)]" : ""
-      }`}
-    >
-      <span className="bd-b flex items-center justify-between bg-header px-3 py-2 text-header-fg">
-        <span className="pop-sm rounded-lg bg-sun px-2 py-0.5 font-display text-sm font-extrabold text-ink">
-          {t.brand.name}
-          <span className="text-accent">!</span>
-        </span>
-        <span className="flex gap-1" aria-hidden>
-          <span className="size-2.5 rounded-full bg-current opacity-60" />
-          <span className="size-2.5 rounded-full bg-current opacity-60" />
-        </span>
-      </span>
-      <span className={`sunburst bd-b flex items-center gap-3 ${compact ? "p-2.5" : "p-4"}`}>
-        <span className="pop-sm flex flex-1 flex-col gap-2 rounded-xl bg-cream p-3">
-          <span className="font-display text-sm font-extrabold">⏱️ {S.preview.card}</span>
-          <span className="flex items-center gap-2">
-            <span className="pop-sm rounded-lg bg-primary px-3 py-1 font-display text-xs font-extrabold text-on-primary">
-              {S.preview.button}
-            </span>
-            {!compact && (
-              <span className="rounded-md bg-display px-2 py-0.5 font-mono text-xs font-bold text-display-fg">9,98</span>
-            )}
-          </span>
-        </span>
-      </span>
-      <span className={`flex items-center justify-between gap-3 bg-cream ${compact ? "p-3" : "p-4"}`}>
-        <span>
-          <span className={`block font-display font-extrabold ${compact ? "text-base" : "text-lg"}`}>{info.name}</span>
-          {!compact && <span className="block text-sm text-ink/70">{info.hint}</span>}
-        </span>
-        {active && (
-          <span className="pop-sm grid size-8 shrink-0 place-items-center rounded-full bg-lime font-bold" aria-hidden>
-            ✓
-          </span>
-        )}
-      </span>
     </button>
   );
 }

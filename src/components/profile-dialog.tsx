@@ -3,27 +3,20 @@
 import Link from "next/link";
 import { useState, type Ref } from "react";
 import { t } from "@/i18n";
-import { AVATARS, useProfile } from "@/lib/profile";
+import { useProfile } from "@/lib/profile";
 import { sfx } from "@/lib/sfx";
 import { ProfileAvatar } from "./profile-avatar";
 
 export function ProfileDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   const store = useProfile();
   const [nick, setNick] = useState("");
-  const [avatar, setAvatar] = useState<string>(AVATARS[0]);
-  // Escolher um emoji aqui troca o avatar criado pelo emoji.
-  const [pickedEmoji, setPickedEmoji] = useState(false);
 
   return (
     <dialog
       ref={ref}
       onToggle={(e) => {
-        // Ao abrir, carrega o perfil salvo no formulário.
-        if ((e.currentTarget as HTMLDialogElement).open) {
-          setNick(store.nickname);
-          setAvatar(store.avatar);
-          setPickedEmoji(false);
-        }
+        // Ao abrir, carrega o apelido salvo no formulário.
+        if ((e.currentTarget as HTMLDialogElement).open) setNick(store.nickname);
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) e.currentTarget.close();
@@ -34,8 +27,7 @@ export function ProfileDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
         method="dialog"
         className="flex flex-col gap-5 p-6"
         onSubmit={() => {
-          store.setProfile(nick.trim(), avatar);
-          if (pickedEmoji) store.setAvatarCustom(null);
+          store.setNickname(nick.trim());
           sfx.good();
         }}
       >
@@ -51,6 +43,15 @@ export function ProfileDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
           </button>
         </div>
 
+        <Link
+          href="/configuracoes#perfil"
+          onClick={(e) => e.currentTarget.closest("dialog")?.close()}
+          className="pop-sm pressable flex items-center gap-4 rounded-3xl bg-sun p-3 pr-5 font-display text-lg font-bold"
+        >
+          <ProfileAvatar size={88} />
+          <span>🎨 {store.avatar ? t.avatar.edit : t.avatar.create} →</span>
+        </Link>
+
         <label className="flex flex-col gap-2">
           <span className="font-display font-bold">{t.profile.nickname}</span>
           <input
@@ -61,37 +62,6 @@ export function ProfileDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
             className="pop-sm rounded-xl bg-field px-4 py-3 text-lg outline-none focus:bg-sun/20"
           />
         </label>
-
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 font-display font-bold">{t.profile.avatar}</legend>
-          <Link
-            href="/configuracoes#perfil"
-            onClick={(e) => e.currentTarget.closest("dialog")?.close()}
-            className="pop-sm pressable mb-2 flex items-center gap-3 rounded-2xl bg-sun p-2 pr-4 font-display font-bold"
-          >
-            <ProfileAvatar size={44} />
-            <span>🎨 {store.avatarCustom ? t.avatar.edit : t.avatar.create} →</span>
-          </Link>
-          <div className="grid grid-cols-6 gap-2">
-            {AVATARS.map((a) => (
-              <button
-                key={a}
-                type="button"
-                aria-pressed={avatar === a}
-                onClick={() => {
-                  setAvatar(a);
-                  setPickedEmoji(true);
-                  sfx.click();
-                }}
-                className={`grid aspect-square place-items-center rounded-xl border-[length:var(--line-w)] text-2xl transition ${
-                  avatar === a && (pickedEmoji || !store.avatarCustom) ? "scale-110 border-line bg-sun shadow-pop-sm" : "border-transparent bg-field hover:border-ink/30"
-                }`}
-              >
-                {a}
-              </button>
-            ))}
-          </div>
-        </fieldset>
 
         <p className="text-sm text-ink/70">{t.profile.note}</p>
 

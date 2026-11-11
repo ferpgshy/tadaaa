@@ -1,22 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { AVATAR_PARTS, DEFAULT_AVATAR, randomAvatar, sanitizeAvatar } from "./avatar";
+import { AVATAR_STYLES, sanitizeAvatar, seededRandom } from "./avatar";
+import { avatarFromName, randomAvatarConfig, renderAllMoods, renderAvatarUri, stylePartsOf } from "./avatar-render";
 
-describe("avatar", () => {
-  it("sorteia só peças válidas e nunca fundo igual ao rosto", () => {
-    for (let i = 0; i < 300; i++) {
-      const a = randomAvatar();
-      for (const [k, v] of Object.entries(a)) {
-        expect(v).toBeGreaterThanOrEqual(0);
-        expect(v).toBeLessThan(AVATAR_PARTS[k as keyof typeof AVATAR_PARTS].length);
-      }
-      expect(AVATAR_PARTS.bg[a.bg]).not.toBe(AVATAR_PARTS.skin[a.skin]);
+describe("avatar ilustrado", () => {
+  it("todos os estilos têm peças editáveis e geram imagem", () => {
+    for (const s of AVATAR_STYLES) {
+      expect(stylePartsOf(s.id).length).toBeGreaterThan(3);
+      const uri = renderAvatarUri(randomAvatarConfig(s.id));
+      expect(uri.startsWith("data:image/svg+xml")).toBe(true);
     }
   });
 
-  it("corrige avatar salvo inválido sem quebrar", () => {
+  it("gera as 4 expressões no estilo Clássico", () => {
+    const imgs = renderAllMoods(randomAvatarConfig("avataaars"));
+    expect(Object.keys(imgs).sort()).toEqual(["happy", "neutral", "sad", "shock"]);
+    expect(imgs.happy).not.toBe(imgs.sad);
+  });
+
+  it("mesmo nome gera o mesmo avatar; trocar o sorteio muda", () => {
+    expect(avatarFromName("Ana")).toEqual(avatarFromName("ana "));
+    expect(avatarFromName("Ana", 1)).not.toEqual(avatarFromName("Ana", 0));
+    const r = seededRandom("x");
+    expect(r()).toBeGreaterThanOrEqual(0);
+  });
+
+  it("descarta avatar salvo inválido ou de formato antigo", () => {
     expect(sanitizeAvatar(null)).toBeNull();
-    expect(sanitizeAvatar("x")).toBeNull();
-    const fixed = sanitizeAvatar({ shape: 99, eyes: 2, mouth: -1, top: 1.5 });
-    expect(fixed).toEqual({ ...DEFAULT_AVATAR, eyes: 2 });
+    expect(sanitizeAvatar({ skin: 2, hair: 3 })).toBeNull();
+    const ok = sanitizeAvatar({ style: "avataaars", seed: "a", options: { top: "fro", x: { bad: 1 } }, frame: 9 });
+    expect(ok).toEqual({ style: "avataaars", seed: "a", options: { top: "fro" }, frame: 0 });
   });
 });

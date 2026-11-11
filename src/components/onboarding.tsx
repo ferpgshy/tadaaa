@@ -3,13 +3,15 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { t } from "@/i18n";
+import dynamic from "next/dynamic";
 import { sanitizeAvatar, type AvatarConfig } from "@/lib/avatar";
-import { AVATARS, useProfile } from "@/lib/profile";
+import { useProfile } from "@/lib/profile";
 import { TEXT_SIZES, THEMES, useSettings } from "@/lib/settings";
 import { sfx } from "@/lib/sfx";
-import { Avatar } from "./avatar";
-import { AvatarPicker } from "./avatar-picker";
-import { ThemeCard } from "./settings-panel";
+import { ThemeCard } from "./theme-card";
+
+// As ilustrações só são baixadas quando as boas-vindas abrem (não pesam nas outras páginas).
+const AvatarEditor = dynamic(() => import("./avatar-editor").then((m) => m.AvatarEditor), { ssr: false });
 
 const O = t.onboarding;
 const S = t.settings;
@@ -34,15 +36,25 @@ export function Onboarding() {
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
   const [nick, setNick] = useState("");
-  const [avatar, setAvatar] = useState<string>(AVATARS[0]);
   const [custom, setCustom] = useState<AvatarConfig | null>(null);
+  const [finishing, setFinishing] = useState(false);
 
   const open = restored && !profile.onboarded;
 
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      d.showModal();
+      // Ao abrir, parte do que já estiver salvo (quem tinha apelido/avatar não perde);
+      // quem ainda não tem avatar começa com um sorteado.
+      const p = useProfile.getState();
+      void import("@/lib/avatar-render").then((m) => {
+        setNick(p.nickname);
+        setStep(0);
+        setCustom(sanitizeAvatar(p.avatar) ?? m.randomAvatarConfig("avataaars"));
+      });
+    }
     if (!open && d.open) d.close();
   }, [open]);
 
@@ -52,13 +64,18 @@ export function Onboarding() {
     sfx.click();
   };
 
-  const finish = (save: boolean) => {
+  const finish = async (save: boolean) => {
     if (save) {
-      profile.setProfile(nick.trim(), avatar);
-      profile.setAvatarCustom(custom);
+      profile.setNickname(nick.trim());
+      if (custom) {
+        setFinishing(true);
+        const { renderAllMoods } = await import("@/lib/avatar-render");
+        profile.setAvatar(custom, renderAllMoods(custom));
+        setFinishing(false);
+      }
+      sfx.win();
     }
     profile.setOnboarded(true);
-    if (save) sfx.win();
   };
 
   const name = nick.trim() || t.profile.defaultNick;
@@ -67,16 +84,6 @@ export function Onboarding() {
     <dialog
       ref={ref}
       aria-labelledby="onb-title"
-      onToggle={(e) => {
-        // Ao abrir, parte do que já estiver salvo (quem tinha apelido não perde).
-        if ((e.currentTarget as HTMLDialogElement).open) {
-          const p = useProfile.getState();
-          setNick(p.nickname);
-          setAvatar(p.avatar);
-          setCustom(sanitizeAvatar(p.avatarCustom));
-          setStep(0);
-        }
-      }}
       onCancel={(e) => {
         // Esc também conta como "pular": não abre de novo.
         e.preventDefault();
@@ -137,9 +144,10 @@ export function Onboarding() {
                       className="pop-sm rounded-xl bg-field px-4 py-3 text-lg outline-none focus:bg-sun/20"
                     />
                   </label>
-                  <fieldset>
+                  <fieldset className="min-w-0">
                     <legend className="mb-2 font-display font-bold">{t.profile.avatar}</legend>
-                    <AvatarPicker compact emoji={avatar} custom={custom} onEmoji={setAvatar} onCustom={setCustom} />
+                    {/* O 3D só monta com a janela aberta neste passo. */}
+                    {open && custom && <AvatarEditor compact value={custom} onChange={setCustom} />}
                   </fieldset>
                   <Nav onNext={() => go(1)} submit />
                 </form>
@@ -205,7 +213,7 @@ export function Onboarding() {
                   </Row>
                 </div>
                 <p className="pop-sm flex items-center gap-3 rounded-2xl bg-sun px-4 py-3 font-display text-lg font-extrabold">
-                  {custom ? <Avatar config={custom} size={40} /> : <span className="text-2xl">{avatar}</span>} {O.ready(name)}
+                  <span className="text-2xl">🎉</span> {finishing ? t.avatar.saving : O.ready(name)}
                 </p>
                 <Nav onBack={() => go(1)} onNext={() => finish(true)} last />
               </>

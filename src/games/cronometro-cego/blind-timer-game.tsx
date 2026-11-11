@@ -1,12 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@/i18n";
 import { useProfile } from "@/lib/profile";
 import { sfx } from "@/lib/sfx";
 import { useHydrated } from "@/lib/use-hydrated";
-import { ProfileAvatar } from "@/components/profile-avatar";
+import { AvatarImage } from "@/components/avatar-image";
+import type { AvatarMood } from "@/lib/avatar";
+import type { AvatarImages } from "@/lib/profile";
 import {
   HIDE_OPTIONS,
   MAX_PLAYERS,
@@ -33,7 +35,15 @@ type Config = {
   hideAfter: number;
   rounds: number;
   players: string[];
+  /** Avatar de cada jogador (modo Galera), na mesma ordem de players. */
+  avatars?: (PlayerAvatar | null)[];
 };
+
+type PlayerAvatar = { images: AvatarImages | null; frame: number };
+
+/** Reação do avatar ao resultado. */
+const moodFor = (v: VerdictKey): AvatarMood =>
+  v === "perfect" || v === "surgical" || v === "close" ? "happy" : v === "broken" ? "sad" : v === "meh" ? "shock" : "neutral";
 
 const verdictColor: Record<VerdictKey, string> = {
   perfect: "bg-lime",
@@ -63,6 +73,8 @@ export function BlindTimerGame() {
   const round = Math.floor(turn / players.length);
   const totalTurns = config?.mode === "group" ? config.rounds * players.length : Infinity;
   const lastShot = shots.at(-1);
+  const avatarOf = (idx: number): PlayerAvatar | null =>
+    config?.mode === "group" ? (config.avatars?.[idx] ?? null) : { images: profile.avatarImages, frame: profile.avatar?.frame ?? 0 };
 
   const pickTarget = (c: Config) => (c.target === "surprise" ? surpriseTarget() : c.target);
 
@@ -180,6 +192,7 @@ export function BlindTimerGame() {
     return (
       <Podium
         players={players}
+        avatars={config.mode === "group" ? config.avatars : [avatarOf(0)]}
         shots={shots}
         onAgain={() => begin(config)}
         onSetup={() => setPhase("setup")}
@@ -195,7 +208,7 @@ export function BlindTimerGame() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         <div className="pop-sm flex min-w-0 items-center gap-2 rounded-2xl bg-cream px-3 py-1.5 sm:gap-3 sm:px-4 sm:py-2">
-          {config.mode === "solo" && <ProfileAvatar size={28} />}
+          <AvatarImage images={avatarOf(playerIdx)?.images} frame={avatarOf(playerIdx)?.frame} size={32} alt={players[playerIdx]} />
           <span className="shrink-0 text-sm text-ink/70 sm:text-base">{L.turnOf}</span>
           <span className="truncate font-display text-xl font-extrabold sm:text-2xl">{players[playerIdx]}</span>
         </div>
@@ -265,6 +278,8 @@ export function BlindTimerGame() {
             err={err}
             v={v}
             status={recordStatus}
+            avatar={avatarOf(lastShot.player)}
+            name={players[lastShot.player]}
             record={config.mode === "solo" ? record : undefined}
           />
         )}
@@ -341,16 +356,36 @@ function ResultView({
   v,
   status,
   record,
+  avatar,
+  name,
 }: {
   elapsedMs: number;
   err: number;
   v: VerdictKey;
   status: "first" | "better" | false;
   record?: number;
+  avatar: PlayerAvatar | null;
+  name: string;
 }) {
   const isRecord = status === "better";
+  const mood = moodFor(v);
   return (
     <div className="flex flex-col items-center gap-3 sm:gap-4">
+      {avatar?.images && (
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={
+            mood === "happy"
+              ? { scale: 1, opacity: 1, y: [0, -16, 0, -8, 0] }
+              : mood === "sad"
+                ? { scale: 1, opacity: 1, x: [0, -6, 6, -4, 4, 0] }
+                : { scale: [0.6, 1.15, 1], opacity: 1 }
+          }
+          transition={{ duration: 0.9, delay: 0.25 }}
+        >
+          <AvatarImage images={avatar.images} frame={avatar.frame} mood={mood} size={88} alt={name} />
+        </motion.div>
+      )}
       <p className="font-display text-lg text-ink/70 sm:text-xl">{L.stoppedAt}</p>
       <motion.p
         initial={{ scale: 0.4, rotate: -8, opacity: 0 }}
@@ -438,9 +473,32 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
   const [players, setPlayers] = useState<string[] | null>(initial?.players ?? null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
+  const [salts, setSalts] = useState<Record<string, number>>({});
+  const [lib, setLib] = useState<typeof import("@/lib/avatar-render") | null>(null);
+  // Seletores separados: um objeto novo a cada leitura faria o zustand re-renderizar sem parar.
+  const profileImages = useProfile((p) => p.avatarImages);
+  const profileFrame = useProfile((p) => p.avatar?.frame ?? 0);
+
+  useEffect(() => {
+    if (mode === "group" && !lib) void import("@/lib/avatar-render").then(setLib);
+  }, [mode, lib]);
 
   const defaults = lastPlayers.length ? lastPlayers : [nickname || "Jogador 1", "Jogador 2"];
   const list = players ?? (hydrated ? defaults : []);
+
+  // Cada jogador ganha um avatar sorteado pelo nome (o seu usa o avatar do perfil). 🔄 sorteia outro.
+  // A lista é recriada a cada render; a chave de texto evita refazer os avatares à toa.
+  const listKey = list.join("\n");
+  const avatars = useMemo<(PlayerAvatar | null)[]>(
+    () =>
+      (listKey ? listKey.split("\n") : []).map((name) => {
+        if (name === nickname && profileImages && !salts[name]) return { images: profileImages, frame: profileFrame };
+        if (!lib) return null;
+        const cfg = lib.avatarFromName(name, salts[name] ?? 0);
+        return { images: lib.renderAllMoods(cfg), frame: 0 };
+      }),
+    [listKey, lib, salts, nickname, profileImages, profileFrame],
+  );
 
   const addPlayer = () => {
     const name = draft.trim().slice(0, 20);
@@ -467,7 +525,7 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
       return;
     }
     sfx.click();
-    onStart({ mode, target, hideAfter, rounds, players: list });
+    onStart({ mode, target, hideAfter, rounds, players: list, avatars });
   };
 
   return (
@@ -527,8 +585,21 @@ function Setup({ initial, onStart }: { initial: Config | null; onStart: (c: Conf
           <Field label={`${L.players} (${list.length}/${MAX_PLAYERS})`}>
             <div className="flex flex-wrap gap-2">
               {list.map((p, i) => (
-                <span key={`${p}-${i}`} className="pop-sm flex items-center gap-2 rounded-full bg-sun py-1 pr-1 pl-4 font-display font-bold">
+                <span key={`${p}-${i}`} className="pop-sm flex items-center gap-2 rounded-full bg-sun py-1 pr-1 pl-1 font-display font-bold">
+                  <AvatarImage images={avatars[i]?.images} frame={avatars[i]?.frame} size={34} alt={p} className="rounded-full" />
                   {p}
+                  <button
+                    type="button"
+                    aria-label={`${t.avatar.reroll}: ${p}`}
+                    title={t.avatar.reroll}
+                    onClick={() => {
+                      setSalts((s) => ({ ...s, [p]: (s[p] ?? 0) + 1 }));
+                      sfx.click();
+                    }}
+                    className="grid size-7 place-items-center rounded-full bg-cream text-sm hover:bg-cyan"
+                  >
+                    🔄
+                  </button>
                   <button
                     type="button"
                     aria-label={`${L.removePlayer} ${p}`}
@@ -622,11 +693,13 @@ function Choice({
 
 function Podium({
   players,
+  avatars,
   shots,
   onAgain,
   onSetup,
 }: {
   players: string[];
+  avatars?: (PlayerAvatar | null)[];
   shots: Shot[];
   onAgain: () => void;
   onSetup: () => void;
@@ -652,7 +725,20 @@ function Podium({
               transition={{ delay: 0.25 * (2 - pos), type: "spring", stiffness: 200, damping: 16 }}
               className="flex w-36 flex-col items-center gap-2"
             >
-              <span className="text-5xl">{medals[pos]}</span>
+              <motion.div
+                animate={pos === 0 ? { y: [0, -14, 0] } : undefined}
+                transition={pos === 0 ? { repeat: Infinity, duration: 0.7, delay: 1, repeatDelay: 0.4 } : undefined}
+                className="relative"
+              >
+                <AvatarImage
+                  images={avatars?.[s.player]?.images}
+                  frame={avatars?.[s.player]?.frame}
+                  mood={pos === 0 ? "happy" : pos === table.length - 1 && table.length > 2 ? "sad" : "neutral"}
+                  size={pos === 0 ? 84 : 68}
+                  alt={players[s.player]}
+                />
+                <span className="absolute -right-3 -bottom-2 text-3xl">{medals[pos]}</span>
+              </motion.div>
               <span className="max-w-full truncate font-display text-xl font-extrabold">{players[s.player]}</span>
               <span className="font-mono">{s.total} pts</span>
               <div
